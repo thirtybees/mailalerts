@@ -24,21 +24,24 @@
  * International Registered Trademark & Property of PrestaShop SA
  */
 
-if (!defined('_PS_VERSION_'))
-	exit;
+if (!defined('_TB_VERSION_')) {
+    exit;
+}
 
 function upgrade_module_3_5_3($object)
 {
-	$success = true;
+    $success = true;
 
-	if (!$object->isRegisteredInHook('actionOrderEdited'))
-		$success &= $object->registerHook('actionOrderEdited');
+    if (!$object->isRegisteredInHook('actionOrderEdited')) {
+        $success &= $object->registerHook('actionOrderEdited');
+    }
 
-	if (!$object->isRegisteredInHook('actionOrderReturn'))
-		$success &= $object->registerHook('actionOrderReturn');
+    if (!$object->isRegisteredInHook('actionOrderReturn')) {
+        $success &= $object->registerHook('actionOrderReturn');
+    }
 
-	Configuration::updateValue('MA_ORDER_EDIT', 1);
-	Configuration::updateValue('MA_RETURN_SLIP', 1);
+    Configuration::updateValue('MA_ORDER_EDIT', 1);
+    Configuration::updateValue('MA_RETURN_SLIP', 1);
 
-	return $success;
+    return $success;
 }
