@@ -55,7 +55,7 @@ class MailAlerts extends Module
     {
         $this->name = 'mailalerts';
         $this->tab = 'administration';
-        $this->version = '4.0.1';
+        $this->version = '4.0.2';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
 
@@ -74,7 +74,7 @@ class MailAlerts extends Module
     }
 
     /**
-     *
+     * Initialize
      */
     protected function init()
     {
@@ -103,6 +103,13 @@ class MailAlerts extends Module
         return true;
     }
 
+    /**
+     * Uninstall this module
+     *
+     * @param bool $deleteParams
+     *
+     * @return bool
+     */
     public function uninstall($deleteParams = true)
     {
         if ($deleteParams) {
@@ -178,6 +185,11 @@ class MailAlerts extends Module
         return true;
     }
 
+    /**
+     * Module configuration page
+     *
+     * @return string Module HTML
+     */
     public function getContent()
     {
         $this->html = '';
@@ -189,6 +201,9 @@ class MailAlerts extends Module
         return $this->html;
     }
 
+    /**
+     * Process module configuration
+     */
     protected function postProcess()
     {
         $errors = [];
@@ -250,6 +265,9 @@ class MailAlerts extends Module
         $this->init();
     }
 
+    /**
+     * @return string
+     */
     public function renderForm()
     {
         $fieldsForm1 = [
@@ -443,6 +461,11 @@ class MailAlerts extends Module
         return $helper->generateForm([$fieldsForm1, $fieldsForm2]);
     }
 
+    /**
+     * Configuration field values
+     *
+     * @return array
+     */
     public function getConfigFieldsValues()
     {
         return [
@@ -480,7 +503,10 @@ class MailAlerts extends Module
                 'PS_MAIL_PASSWD',
                 'PS_SHOP_NAME',
                 'PS_MAIL_COLOR',
-            ], $idLang, null, $idShop
+            ],
+            $idLang,
+            null,
+            $idShop
         );
         $delivery = new Address((int) $order->id_address_delivery);
         $invoice = new Address((int) $order->id_address_invoice);
@@ -498,7 +524,7 @@ class MailAlerts extends Module
         $customizedDatas = Product::getAllCustomizedDatas((int) $params['cart']->id);
         Product::addCustomizationPrice($products, $customizedDatas);
         foreach ($products as $key => $product) {
-            $unit_price = Product::getTaxCalculationMethod($customer->id) == PS_TAX_EXC ? $product['product_price'] : $product['product_price_wt'];
+            $unitPrice = Product::getTaxCalculationMethod($customer->id) == PS_TAX_EXC ? $product['product_price'] : $product['product_price_wt'];
 
             $customizationText = '';
             if (isset($customizedDatas[$product['product_id']][$product['product_attribute_id']])) {
@@ -532,10 +558,10 @@ class MailAlerts extends Module
                 .(!empty($customizationText) ? '<br />'.$customizationText : '')
                 .'</strong>
 					</td>
-					<td style="padding:0.6em 0.4em; text-align:right;">'.Tools::displayPrice($unit_price, $currency, false).'</td>
+					<td style="padding:0.6em 0.4em; text-align:right;">'.Tools::displayPrice($unitPrice, $currency, false).'</td>
 					<td style="padding:0.6em 0.4em; text-align:center;">'.(int) $product['product_quantity'].'</td>
 					<td style="padding:0.6em 0.4em; text-align:right;">'
-                .Tools::displayPrice(($unit_price * $product['product_quantity']), $currency, false)
+                .Tools::displayPrice(($unitPrice * $product['product_quantity']), $currency, false)
                 .'</td>
 				</tr>';
         }
@@ -660,9 +686,11 @@ class MailAlerts extends Module
             ) {
                 $dirMail = __DIR__.'/mails/';
             } elseif (file_exists(_PS_MAIL_DIR_.$mailIso.'/new_order.txt') &&
-                file_exists(_PS_MAIL_DIR_.$mailIso.'/new_order.html')
-            ) {
+                file_exists(_PS_MAIL_DIR_.$mailIso.'/new_order.html')) {
                 $dirMail = _PS_MAIL_DIR_;
+            } elseif (Language::getIdByIso('en')) {
+                $mailIdLang = (int) Language::getIdByIso('en');
+                $dirMail = __DIR__.'/mails/';
             }
 
             if ($dirMail) {
@@ -685,6 +713,13 @@ class MailAlerts extends Module
         }
     }
 
+    /**
+     * Get all messages
+     *
+     * @param int $id
+     *
+     * @return string
+     */
     public function getAllMessages($id)
     {
         $messages = Db::getInstance()->executeS(
@@ -702,13 +737,20 @@ class MailAlerts extends Module
         return implode('<br/>', $result);
     }
 
+    /**
+     *
+     *
+     * @param array $params
+     *
+     * @return string
+     */
     public function hookActionProductOutOfStock($params)
     {
         if (!$this->customer_qty ||
             !Configuration::get('PS_STOCK_MANAGEMENT') ||
             Product::isAvailableWhenOutOfStock($params['product']->out_of_stock)
         ) {
-            return;
+            return '';
         }
 
         $context = Context::getContext();
@@ -719,7 +761,7 @@ class MailAlerts extends Module
         if ((int) $context->customer->id <= 0) {
             $this->context->smarty->assign('email', 1);
         } elseif (MailAlert::customerHasNotification($idCustomer, $idProduct, $idProductAttribute, (int) $context->shop->id)) {
-            return;
+            return '';
         }
 
         $this->context->smarty->assign(
@@ -732,6 +774,9 @@ class MailAlerts extends Module
         return $this->display(__FILE__, 'product.tpl');
     }
 
+    /**
+     * @param array $params
+     */
     public function hookActionUpdateQuantity($params)
     {
         $idProduct = (int) $params['id_product'];
@@ -749,7 +794,10 @@ class MailAlerts extends Module
                 'PS_STOCK_MANAGEMENT',
                 'PS_SHOP_EMAIL',
                 'PS_SHOP_NAME',
-            ], null, null, $idShop
+            ],
+            null,
+            null,
+            $idShop
         );
         $maLastQties = (int) $configuration['MA_LAST_QTIES'];
 
@@ -781,6 +829,9 @@ class MailAlerts extends Module
                 file_exists(_PS_MAIL_DIR_.$mailIso.'/productoutofstock.html')
             ) {
                 $dirMail = _PS_MAIL_DIR_;
+            } elseif (Language::getIdByIso('en')) {
+                $dirMail = __DIR__."/mails/";
+                $idLang = (int) Language::getIdByIso('en');
             }
 
             // Do not send mail if multiples product are created / imported.
@@ -812,6 +863,9 @@ class MailAlerts extends Module
         }
     }
 
+    /**
+     * @param array $params
+     */
     public function hookActionProductAttributeUpdate($params)
     {
         $sql = '
@@ -826,16 +880,27 @@ class MailAlerts extends Module
         }
     }
 
+    /**
+     * @param array $params
+     *
+     * @return string
+     */
     public function hookDisplayMyAccountBlock($params)
     {
         return $this->hookDisplayCustomerAccount($params);
     }
 
+    /**
+     * @return string
+     */
     public function hookDisplayCustomerAccount()
     {
-        return $this->customer_qty ? $this->display(__FILE__, 'my-account.tpl') : null;
+        return $this->customer_qty ? $this->display(__FILE__, 'my-account.tpl') : '';
     }
 
+    /**
+     * @param array $params
+     */
     public function hookActionProductDelete($params)
     {
         $sql = '
@@ -845,6 +910,9 @@ class MailAlerts extends Module
         Db::getInstance()->execute($sql);
     }
 
+    /**
+     * @param array $params
+     */
     public function hookActionAttributeDelete($params)
     {
         if ($params['deleteAllAttributes']) {
@@ -861,6 +929,9 @@ class MailAlerts extends Module
         Db::getInstance()->execute($sql);
     }
 
+    /**
+     * @param array $params
+     */
     public function hookActionProductCoverage($params)
     {
         // if not advanced stock management, nothing to do
@@ -922,6 +993,9 @@ class MailAlerts extends Module
                 file_exists(_PS_MAIL_DIR_.$mailIso.'/productcoverage.html')
             ) {
                 $dirMail = _PS_MAIL_DIR_;
+            } elseif (Language::getIdByIso('en')) {
+                $idLang = (int) Language::getIdByIso('en');
+                $dirMail = __DIR__.'/mails/';
             }
 
             if ($dirMail) {
@@ -980,7 +1054,10 @@ class MailAlerts extends Module
                 'PS_MAIL_PASSWD',
                 'PS_SHOP_NAME',
                 'PS_MAIL_COLOR',
-            ], $idLang, null, $idShop
+            ],
+            $idLang,
+            null,
+            $idShop
         );
 
         // Shop iso
@@ -1095,6 +1172,9 @@ class MailAlerts extends Module
                 file_exists(_PS_MAIL_DIR_.$mailIso.'/return_slip.html')
             ) {
                 $dirMail = _PS_MAIL_DIR_;
+            } elseif (Language::getIdByIso('en')) {
+                $mailIdLang = (int) Language::getIdByIso('en');
+                $dirMail = __DIR__.'/mails/';
             }
 
             if ($dirMail) {
@@ -1156,10 +1236,13 @@ class MailAlerts extends Module
             file_exists(_PS_MAIL_DIR_.$mailIso.'/order_changed.html')
         ) {
             $dirMail = _PS_MAIL_DIR_;
+        } elseif (Language::getIdByIso('en')) {
+            $mailIso = 'en';
+            $dirMail = __DIR__.'/mails/';
         }
 
         Mail::Send(
-            (int) $order->id_lang,
+            Language::getIdByIso($mailIso),
             'order_changed',
             Mail::l(
                 'Your order has been changed',
