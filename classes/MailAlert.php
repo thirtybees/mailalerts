@@ -147,7 +147,7 @@ class MailAlert extends \ObjectModel
                 $attrgrps = $obj->getAttributesGroups((int) $idLang);
                 foreach ($attrgrps as $attrgrp) {
                     if ($attrgrp['id_product_attribute'] == (int) $products[$i]['id_product_attribute']
-                        && $images = Product::_getAttributeImageAssociations((int) $attrgrp['id_product_attribute'])
+                        && $images = \Product::_getAttributeImageAssociations((int) $attrgrp['id_product_attribute'])
                     ) {
                         $products[$i]['cover'] = $obj->id.'-'.array_pop($images);
                         break;
@@ -253,11 +253,25 @@ class MailAlert extends \ObjectModel
                 $customerEmail = $customer['customer_email'];
             }
 
-            $iso = \Language::getIsoById($idLang);
+            $mailIso = \Language::getIsoById($idLang);
 
-            if (file_exists(dirname(__FILE__).'/mails/'.$iso.'/customer_qty.txt') &&
-                file_exists(dirname(__FILE__).'/mails/'.$iso.'/customer_qty.html')
+            $dirMail = false;
+            if (file_exists(_THEME_DIR_."modules/mailalerts/mails/$mailIso/customer_qty.txt") &&
+                file_exists(_THEME_DIR_."modules/mailalerts/mails/$mailIso/customer_qty.html")) {
+                $dirMail = _THEME_DIR_."modules/mailalerts/mails/";
+            } elseif (file_exists(__DIR__."/../mails/$mailIso/customer_qty.txt") &&
+                file_exists(__DIR__."/../mails/$mailIso/customer_qty.html")
             ) {
+                $dirMail = __DIR__.'/../mails/';
+            } elseif (file_exists(_PS_MAIL_DIR_.$mailIso.'/customer_qty.txt') &&
+                file_exists(_PS_MAIL_DIR_.$mailIso.'/customer_qty.html')) {
+                $dirMail = _PS_MAIL_DIR_;
+            } elseif (\Language::getIdByIso('en')) {
+                $idLang = (int) \Language::getIdByIso('en');
+                $dirMail = __DIR__.'/../mails/';
+            }
+
+            if ($dirMail) {
                 \Mail::Send(
                     $idLang,
                     'customer_qty',
@@ -269,7 +283,7 @@ class MailAlert extends \ObjectModel
                     (string) \Configuration::get('PS_SHOP_NAME', null, null, $idShop),
                     null,
                     null,
-                    dirname(__FILE__).'/mails/',
+                    $dirMail,
                     false,
                     $idShop
                 );
