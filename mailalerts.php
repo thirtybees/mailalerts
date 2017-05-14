@@ -55,7 +55,7 @@ class MailAlerts extends Module
     {
         $this->name = 'mailalerts';
         $this->tab = 'administration';
-        $this->version = '4.0.3';
+        $this->version = '4.0.4';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
 
@@ -678,9 +678,9 @@ class MailAlerts extends Module
             }
 
             $dirMail = false;
-            if (file_exists(_THEME_DIR_."modules/$this->name/mails/$mailIso/new_order.txt") &&
-                file_exists(_THEME_DIR_."modules/$this->name/mails/$mailIso/new_order.html")) {
-                $dirMail = _THEME_DIR_."modules/$this->name/mails/";
+            if (file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/new_order.txt") &&
+                file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/new_order.html")) {
+                $dirMail = _PS_THEME_DIR_."modules/$this->name/mails/";
             } elseif (file_exists(__DIR__."/mails/$mailIso/new_order.txt") &&
                 file_exists(__DIR__."/mails/$mailIso/new_order.html")
             ) {
@@ -818,9 +818,9 @@ class MailAlerts extends Module
             ];
 
             $dirMail = false;
-            if (file_exists(_THEME_DIR_."modules/$this->name/mails/$mailIso/productoutofstock.txt") &&
-                file_exists(_THEME_DIR_."modules/$this->name/mails/$mailIso/productoutofstock.html")) {
-                $dirMail = _THEME_DIR_."modules/$this->name/mails/";
+            if (file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/productoutofstock.txt") &&
+                file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/productoutofstock.html")) {
+                $dirMail = _PS_THEME_DIR_."modules/$this->name/mails/";
             } elseif (file_exists(__DIR__."/mails/$mailIso/productoutofstock.txt") &&
                 file_exists(__DIR__."/mails/$mailIso/productoutofstock.html")
             ) {
@@ -982,9 +982,9 @@ class MailAlerts extends Module
             ];
 
             $dirMail = false;
-            if (file_exists(_THEME_DIR_."modules/$this->name/mails/$mailIso/productcoverage.txt") &&
-                file_exists(_THEME_DIR_."modules/$this->name/mails/$mailIso/productcoverage.html")) {
-                $dirMail = _THEME_DIR_."modules/$this->name/mails/";
+            if (file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/productcoverage.txt") &&
+                file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/productcoverage.html")) {
+                $dirMail = _PS_THEME_DIR_."modules/$this->name/mails/";
             } elseif (file_exists(__DIR__."/mails/$mailIso/productcoverage.txt") &&
                 file_exists(__DIR__."/mails/$mailIso/productcoverage.html")
             ) {
@@ -1161,9 +1161,9 @@ class MailAlerts extends Module
             }
 
             $dirMail = false;
-            if (file_exists(_THEME_DIR_."modules/$this->name/mails/$mailIso/return_slip.txt") &&
-                file_exists(_THEME_DIR_."modules/$this->name/mails/$mailIso/return_slip.html")) {
-                $dirMail = _THEME_DIR_."modules/$this->name/mails/";
+            if (file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/return_slip.txt") &&
+                file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/return_slip.html")) {
+                $dirMail = _PS_THEME_DIR_."modules/$this->name/mails/";
             } elseif (file_exists(__DIR__."/mails/$mailIso/return_slip.txt") &&
                 file_exists(__DIR__."/mails/$mailIso/return_slip.html")
             ) {
@@ -1225,9 +1225,9 @@ class MailAlerts extends Module
         }
 
         $dirMail = false;
-        if (file_exists(_THEME_DIR_."modules/$this->name/mails/$mailIso/order_changed.txt") &&
-            file_exists(_THEME_DIR_."modules/$this->name/mails/$mailIso/order_changed.html")) {
-            $dirMail = _THEME_DIR_."modules/$this->name/mails/";
+        if (file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/order_changed.txt") &&
+            file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/order_changed.html")) {
+            $dirMail = _PS_THEME_DIR_."modules/$this->name/mails/";
         } elseif (file_exists(__DIR__."/mails/$mailIso/order_changed.txt") &&
             file_exists(__DIR__."/mails/$mailIso/order_changed.html")
         ) {

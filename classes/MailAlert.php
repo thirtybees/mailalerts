@@ -256,9 +256,9 @@ class MailAlert extends \ObjectModel
             $mailIso = \Language::getIsoById($idLang);
 
             $dirMail = false;
-            if (file_exists(_THEME_DIR_."modules/mailalerts/mails/$mailIso/customer_qty.txt") &&
-                file_exists(_THEME_DIR_."modules/mailalerts/mails/$mailIso/customer_qty.html")) {
-                $dirMail = _THEME_DIR_."modules/mailalerts/mails/";
+            if (file_exists(_PS_THEME_DIR_."modules/mailalerts/mails/$mailIso/customer_qty.txt") &&
+                file_exists(_PS_THEME_DIR_."modules/mailalerts/mails/$mailIso/customer_qty.html")) {
+                $dirMail = _PS_THEME_DIR_."modules/mailalerts/mails/";
             } elseif (file_exists(__DIR__."/../mails/$mailIso/customer_qty.txt") &&
                 file_exists(__DIR__."/../mails/$mailIso/customer_qty.html")
             ) {
