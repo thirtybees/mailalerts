@@ -14,5 +14,5 @@ You are advised to open the product's admin Product Page in order to
 replenish your inventory. 
 
 {shop_name} [{shop_url}] powered by
-PrestaShop(tm) [http://www.prestashop.com/] 
+thirty bees(tm) [http://www.thirtybees.com/]
 
