@@ -11,5 +11,5 @@ The stock cover is now less than the specified minimum of:
 CURRENT STOCK COVER: {current_coverage} 
 
 {shop_name} [{shop_url}] powered by
-PrestaShop(tm) [http://www.prestashop.com/] 
+thirty bees(tm) [http://www.thirtybees.com/]
 

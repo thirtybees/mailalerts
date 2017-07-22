@@ -13,5 +13,5 @@ You can access the product page by clicking on the link: {product}
 You can order it right now from our online shop. 
 
 {shop_name} [{shop_url}] powered by
-PrestaShop(tm) [http://www.prestashop.com/] 
+thirty bees(tm) [http://www.thirtybees.com/]
 
