@@ -1,0 +1,1 @@
+The mail alerts module can send you a notification when a new order is placed, a product is running low on stock, or when new users register in your shop.
