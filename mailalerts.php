@@ -1248,10 +1248,7 @@ class MailAlerts extends Module
         Mail::Send(
             Language::getIdByIso($mailIso),
             'order_changed',
-            Mail::l(
-                'Your order has been changed',
-                (int) $order->id_lang
-            ),
+            Mail::l('Your order has been changed', (int) $order->id_lang),
             $data,
             $order->getCustomer()->email,
             $order->getCustomer()->firstname.' '.$order->getCustomer()->lastname,
