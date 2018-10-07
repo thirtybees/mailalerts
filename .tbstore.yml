@@ -3,10 +3,11 @@ compatible_versions: 1.0.0+
 author: thirty bees
 category: administration
 tags:
-  - mail alerts
-  - notifications
+- mail alerts
+- notifications
+- mailalerts
 description_short: The mail alerts module will notifiy you of events that happen in your shop.
 description: description.md
 images:
-  - image-1.png
+- image-1.png
 license: AFL

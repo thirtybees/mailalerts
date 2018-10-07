@@ -5,6 +5,7 @@ category: administration
 tags:
   - mail alerts
   - notifications
+  - mailalerts
 description_short: The mail alerts module will notifiy you of events that happen in your shop.
 description: description.md
 images:
