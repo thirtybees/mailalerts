@@ -314,7 +314,7 @@ class MailAlert extends \ObjectModel
         $sql = '
 			SELECT id_customer, customer_email, id_shop, id_lang
 			FROM `'._DB_PREFIX_.self::$definition['table'].'`
-			WHERE `id_product` = '.(int) $idProduct.' AND `id_product_attribute` = '.(int) $idProductAttribute;
+			WHERE `id_product` = '.(int) $idProduct.' AND `id_product_attribute` = '.(int) $idProductAttribute .' AND `notified` = 0';
 
         return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
     }
@@ -330,13 +330,24 @@ class MailAlert extends \ObjectModel
      */
     public static function deleteAlert($idCustomer, $customerEmail, $idProduct, $idProductAttribute, $idShop = null)
     {
-        $sql = '
-			DELETE FROM `'._DB_PREFIX_.self::$definition['table'].'`
-			WHERE '.(($idCustomer > 0) ? '(`customer_email` = \''.pSQL($customerEmail).'\' OR `id_customer` = '.(int) $idCustomer.')' :
-                '`customer_email` = \''.pSQL($customerEmail).'\'').
-            ' AND `id_product` = '.(int) $idProduct.'
-			AND `id_product_attribute` = '.(int) $idProductAttribute.'
-			AND `id_shop` = '.($idShop != null ? (int) $idShop : (int) \Context::getContext()->shop->id);
+        if (Configuration::get('MA_CUSTOMER_QTY_DELETE')){
+            $sql = '
+    			DELETE FROM `'._DB_PREFIX_.self::$definition['table'].'`
+    			WHERE '.(($idCustomer > 0) ? '(`customer_email` = \''.pSQL($customerEmail).'\' OR `id_customer` = '.(int) $idCustomer.')' :
+                    '`customer_email` = \''.pSQL($customerEmail).'\'').
+                ' AND `id_product` = '.(int) $idProduct.'
+    			AND `id_product_attribute` = '.(int) $idProductAttribute.'
+    			AND `id_shop` = '.($idShop != null ? (int) $idShop : (int) \Context::getContext()->shop->id);
+        }else{
+            $sql = '
+    			UPDATE `'._DB_PREFIX_.self::$definition['table'].'`
+                SET `notified` = 1
+                WHERE '.(($idCustomer > 0) ? '(`customer_email` = \''.pSQL($customerEmail).'\' OR `id_customer` = '.(int) $idCustomer.')' :
+                    '`customer_email` = \''.pSQL($customerEmail).'\'').
+                ' AND `id_product` = '.(int) $idProduct.'
+    			AND `id_product_attribute` = '.(int) $idProductAttribute.'
+    			AND `id_shop` = '.($idShop != null ? (int) $idShop : (int) \Context::getContext()->shop->id);
+        }
 
         return \Db::getInstance()->execute($sql);
     }
