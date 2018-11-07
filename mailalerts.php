@@ -120,6 +120,7 @@ class MailAlerts extends Module
             Configuration::deleteByName('MA_MERCHANT_ORDER');
             Configuration::deleteByName('MA_MERCHANT_OOS');
             Configuration::deleteByName('MA_CUSTOMER_QTY');
+            Configuration::deleteByName('MA_CUSTOMER_QTY_DELETE');
             Configuration::deleteByName('MA_MERCHANT_MAILS');
             Configuration::deleteByName('MA_LAST_QTIES');
             Configuration::deleteByName('MA_MERCHANT_COVERAGE');
@@ -163,6 +164,7 @@ class MailAlerts extends Module
             Configuration::updateValue('MA_MERCHANT_ORDER', 1);
             Configuration::updateValue('MA_MERCHANT_OOS', 1);
             Configuration::updateValue('MA_CUSTOMER_QTY', 1);
+            Configuration::updateValue('MA_CUSTOMER_QTY_DELETE', 1);
             Configuration::updateValue('MA_ORDER_EDIT', 1);
             Configuration::updateValue('MA_RETURN_SLIP', 1);
             Configuration::updateValue('MA_MERCHANT_MAILS', Configuration::get('PS_SHOP_EMAIL'));
@@ -174,6 +176,7 @@ class MailAlerts extends Module
 				(
 					`id_customer` int(10) unsigned NOT NULL,
 					`customer_email` varchar(128) NOT NULL,
+                    			`notified` int(10) unsigned NOT NULL,
 					`id_product` int(10) unsigned NOT NULL,
 					`id_product_attribute` int(10) unsigned NOT NULL,
 					`id_shop` int(10) unsigned NOT NULL,
@@ -214,6 +217,9 @@ class MailAlerts extends Module
 
         if (Tools::isSubmit('submitMailAlert')) {
             if (!Configuration::updateValue('MA_CUSTOMER_QTY', (int) Tools::getValue('MA_CUSTOMER_QTY'))) {
+                $errors[] = $this->l('Cannot update settings');
+            }
+            if (!Configuration::updateValue('MA_CUSTOMER_QTY_DELETE', (int) Tools::getValue('MA_CUSTOMER_QTY_DELETE'))) {
                 $errors[] = $this->l('Cannot update settings');
             }
         } else {
@@ -287,6 +293,25 @@ class MailAlerts extends Module
                         'label'   => $this->l('Product availability'),
                         'name'    => 'MA_CUSTOMER_QTY',
                         'desc'    => $this->l('Gives the customer the option of receiving a notification when an out-of-stock product is available again.'),
+                        'values'  => [
+                            [
+                                'id'    => 'active_on',
+                                'value' => 1,
+                                'label' => $this->l('Enabled'),
+                            ],
+                            [
+                                'id'    => 'active_off',
+                                'value' => 0,
+                                'label' => $this->l('Disabled'),
+                            ],
+                        ],
+                    ],
+                    [
+                        'type'    => 'switch',
+                        'is_bool' => true, //retro compat 1.5
+                        'label'   => $this->l('Delete Product Availability'),
+                        'name'    => 'MA_CUSTOMER_QTY_DELETE',
+                        'desc'    => $this->l('Gives the shop to option if will delete the subscribed in database or flag it to use the information in future to analise data, after notify the customer.'),
                         'values'  => [
                             [
                                 'id'    => 'active_on',
@@ -473,15 +498,16 @@ class MailAlerts extends Module
     public function getConfigFieldsValues()
     {
         return [
-            'MA_CUSTOMER_QTY'      => Tools::getValue('MA_CUSTOMER_QTY', Configuration::get('MA_CUSTOMER_QTY')),
-            'MA_MERCHANT_ORDER'    => Tools::getValue('MA_MERCHANT_ORDER', Configuration::get('MA_MERCHANT_ORDER')),
-            'MA_MERCHANT_OOS'      => Tools::getValue('MA_MERCHANT_OOS', Configuration::get('MA_MERCHANT_OOS')),
-            'MA_LAST_QTIES'        => Tools::getValue('MA_LAST_QTIES', Configuration::get('MA_LAST_QTIES')),
-            'MA_MERCHANT_COVERAGE' => Tools::getValue('MA_MERCHANT_COVERAGE', Configuration::get('MA_MERCHANT_COVERAGE')),
-            'MA_PRODUCT_COVERAGE'  => Tools::getValue('MA_PRODUCT_COVERAGE', Configuration::get('MA_PRODUCT_COVERAGE')),
-            'MA_MERCHANT_MAILS'    => Tools::getValue('MA_MERCHANT_MAILS', Configuration::get('MA_MERCHANT_MAILS')),
-            'MA_ORDER_EDIT'        => Tools::getValue('MA_ORDER_EDIT', Configuration::get('MA_ORDER_EDIT')),
-            'MA_RETURN_SLIP'       => Tools::getValue('MA_RETURN_SLIP', Configuration::get('MA_RETURN_SLIP')),
+            'MA_CUSTOMER_QTY'           => Tools::getValue('MA_CUSTOMER_QTY', Configuration::get('MA_CUSTOMER_QTY')),
+            'MA_CUSTOMER_QTY_DELETE'    => Tools::getValue('MA_CUSTOMER_QTY_DELETE', Configuration::get('MA_CUSTOMER_QTY_DELETE')),
+            'MA_MERCHANT_ORDER'         => Tools::getValue('MA_MERCHANT_ORDER', Configuration::get('MA_MERCHANT_ORDER')),
+            'MA_MERCHANT_OOS'           => Tools::getValue('MA_MERCHANT_OOS', Configuration::get('MA_MERCHANT_OOS')),
+            'MA_LAST_QTIES'             => Tools::getValue('MA_LAST_QTIES', Configuration::get('MA_LAST_QTIES')),
+            'MA_MERCHANT_COVERAGE'      => Tools::getValue('MA_MERCHANT_COVERAGE', Configuration::get('MA_MERCHANT_COVERAGE')),
+            'MA_PRODUCT_COVERAGE'       => Tools::getValue('MA_PRODUCT_COVERAGE', Configuration::get('MA_PRODUCT_COVERAGE')),
+            'MA_MERCHANT_MAILS'         => Tools::getValue('MA_MERCHANT_MAILS', Configuration::get('MA_MERCHANT_MAILS')),
+            'MA_ORDER_EDIT'             => Tools::getValue('MA_ORDER_EDIT', Configuration::get('MA_ORDER_EDIT')),
+            'MA_RETURN_SLIP'            => Tools::getValue('MA_RETURN_SLIP', Configuration::get('MA_RETURN_SLIP')),
         ];
     }
 
