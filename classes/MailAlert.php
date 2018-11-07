@@ -240,7 +240,7 @@ class MailAlert extends \ObjectModel
             $product = new \Product((int) $idProduct, false, $idLang, $idShop);
             $productLink = $link->getProductLink($product, $product->link_rewrite, null, null, $idLang, $idShop);
             $imageCover = \Product::getCover((int)$idProduct);
-            $imageLinkCover = $link->getImageLink($product->link_rewrite, $cover["id_image"], 'home_default');
+            $imageLinkCover = $link->getImageLink($product->link_rewrite, $imageCover["id_image"], 'home_default');
             $templateVars = [
                 '{product}'      => (is_array($product->name) ? $product->name[$idLang] : $product->name),
                 '{product_link}' => $productLink,
