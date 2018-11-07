@@ -330,7 +330,7 @@ class MailAlert extends \ObjectModel
      */
     public static function deleteAlert($idCustomer, $customerEmail, $idProduct, $idProductAttribute, $idShop = null)
     {
-        if (Configuration::get('MA_CUSTOMER_QTY_DELETE')){
+        if (\Configuration::get('MA_CUSTOMER_QTY_DELETE')){
             $sql = '
     			DELETE FROM `'._DB_PREFIX_.self::$definition['table'].'`
     			WHERE '.(($idCustomer > 0) ? '(`customer_email` = \''.pSQL($customerEmail).'\' OR `id_customer` = '.(int) $idCustomer.')' :
