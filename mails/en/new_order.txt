@@ -66,6 +66,4 @@ Customer message:
 
 {message} 
 
-{shop_name} [{shop_url}] powered by
-thirty bees(tm) [http://www.thirtybees.com/]
-
+{shop_name} [{shop_url}]
