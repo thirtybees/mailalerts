@@ -215,6 +215,8 @@ class MailAlerts extends Module
         if (Tools::isSubmit('submitMailAlert')) {
             if (!Configuration::updateValue('MA_CUSTOMER_QTY', (int) Tools::getValue('MA_CUSTOMER_QTY'))) {
                 $errors[] = $this->l('Cannot update settings');
+            } elseif (!Configuration::updateGlobalValue('MA_ORDER_EDIT', (int) Tools::getValue('MA_ORDER_EDIT'))) {
+                $errors[] = $this->l('Cannot update settings');
             }
         } else {
             if (Tools::isSubmit('submitMAMerchant')) {
@@ -250,8 +252,6 @@ class MailAlerts extends Module
                     } elseif (!Configuration::updateGlobalValue('MA_MERCHANT_COVERAGE', (int) Tools::getValue('MA_MERCHANT_COVERAGE'))) {
                         $errors[] = $this->l('Cannot update settings');
                     } elseif (!Configuration::updateGlobalValue('MA_PRODUCT_COVERAGE', (int) Tools::getValue('MA_PRODUCT_COVERAGE'))) {
-                        $errors[] = $this->l('Cannot update settings');
-                    } elseif (!Configuration::updateGlobalValue('MA_ORDER_EDIT', (int) Tools::getValue('MA_ORDER_EDIT'))) {
                         $errors[] = $this->l('Cannot update settings');
                     } elseif (!Configuration::updateGlobalValue('MA_RETURN_SLIP', (int) Tools::getValue('MA_RETURN_SLIP'))) {
                         $errors[] = $this->l('Cannot update settings');
