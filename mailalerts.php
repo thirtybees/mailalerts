@@ -643,7 +643,7 @@ class MailAlerts extends Module
             '{total_paid}'           => Tools::displayPrice($order->total_paid, $currency),
             '{total_products}'       => Tools::displayPrice($totalProducts, $currency),
             '{total_discounts}'      => Tools::displayPrice($order->total_discounts, $currency),
-            '{total_shipping}'       => Tools::displayPrice($order->total_shipping, $currency),
+            '{total_shipping}'       => Tools::displayPrice($order->total_shipping_tax_excl, $currency),
             '{total_tax_paid}'       => Tools::displayPrice(
                 ($order->total_products_wt - $order->total_products) + ($order->total_shipping_tax_incl - $order->total_shipping_tax_excl),
                 $currency,
