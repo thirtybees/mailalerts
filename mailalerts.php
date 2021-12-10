@@ -917,7 +917,7 @@ class MailAlerts extends Module
     /**
      * @param array $params
      */
-    public function hookActionAttributeDelete($params)
+    public function hookActionProductAttributeDelete($params)
     {
         if ($params['deleteAllAttributes']) {
             $sql = '
