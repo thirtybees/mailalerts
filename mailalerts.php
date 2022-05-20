@@ -780,6 +780,8 @@ class MailAlerts extends Module
 
     /**
      * @param array $params
+     *
+     * @throws PrestaShopException
      */
     public function hookActionUpdateQuantity($params)
     {
@@ -816,9 +818,10 @@ class MailAlerts extends Module
             $mailIso = Language::getIsoById($idLang);
             $productName = Product::getProductName($idProduct, $idProductAttribute, $idLang);
             $templateVars = [
-                '{qty}'      => $quantity,
-                '{last_qty}' => $maLastQties,
-                '{product}'  => $productName,
+                '{qty}'       => $quantity,
+                '{last_qty}'  => $maLastQties,
+                '{product}'   => $productName,
+                '{reference}' => $product->reference,
             ];
 
             $dirMail = false;
