@@ -19,8 +19,12 @@ ALTER TABLE `PREFIX_mailalert_customer_oos` DROP PRIMARY KEY;
 
 ALTER TABLE `PREFIX_mailalert_customer_oos` ADD `id_mailalert_customer_oos` INT(11) unsigned NOT NULL;
 
+ALTER TABLE `PREFIX_mailalert_customer_oos` ADD `date_add` DATETIME NOT NULL;
+
 SET @rownum = 0;
 UPDATE `PREFIX_mailalert_customer_oos` SET `id_mailalert_customer_oos` = @rownum:=@rownum+1 WHERE `id_mailalert_customer_oos` = 0;
+
+UPDATE `PREFIX_mailalert_customer_oos` SET `date_add` = now();
 
 ALTER TABLE `PREFIX_mailalert_customer_oos` ADD PRIMARY KEY(`id_mailalert_customer_oos`);
 

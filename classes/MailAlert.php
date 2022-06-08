@@ -48,6 +48,7 @@ class MailAlert extends \ObjectModel
             'id_product_attribute' => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
             'id_shop'              => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
             'id_lang'              => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
+            'date_add'             => ['type' => self::TYPE_DATE,   'validate' => 'isDate'],
         ],
     ];
 
@@ -80,6 +81,11 @@ class MailAlert extends \ObjectModel
      * @var int
      */
     public $id_lang;
+
+    /**
+     * @var string
+     */
+    public $date_add;
 
     /**
      * @param int $idCustomer
