@@ -1,2 +1,5 @@
 *mailalerts*.zip
 .idea/
+/translations/*
+!/translations/index.php
+/config*.xml
