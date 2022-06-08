@@ -133,8 +133,7 @@ class MailAlerts extends Module
             Configuration::deleteByName('MA_PRODUCT_COVERAGE');
             Configuration::deleteByName('MA_ORDER_EDIT');
             Configuration::deleteByName('MA_RETURN_SLIP');
-
-            if (!Db::getInstance()->execute('DROP TABLE IF EXISTS '._DB_PREFIX_.MailAlert::$definition['table'])) {
+            if (! $this->uninstallDb()) {
                 return false;
             }
         }
@@ -180,18 +179,7 @@ class MailAlerts extends Module
             Configuration::updateGlobalValue('MA_MERCHANT_COVERAGE', 0);
             Configuration::updateGlobalValue('MA_PRODUCT_COVERAGE', 0);
 
-            $sql = 'CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.MailAlert::$definition['table'].'`
-				(
-					`id_customer` int(10) unsigned NOT NULL,
-					`customer_email` varchar(128) NOT NULL,
-					`id_product` int(10) unsigned NOT NULL,
-					`id_product_attribute` int(10) unsigned NOT NULL,
-					`id_shop` int(10) unsigned NOT NULL,
-					`id_lang` int(10) unsigned NOT NULL,
-					PRIMARY KEY  (`id_customer`,`customer_email`,`id_product`,`id_product_attribute`,`id_shop`)
-				) ENGINE='._MYSQL_ENGINE_.' DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci';
-
-            if (!Db::getInstance()->execute($sql)) {
+            if (! $this->installDb()) {
                 return false;
             }
         }
@@ -1329,5 +1317,71 @@ class MailAlerts extends Module
         }
         return $name;
 
+    }
+
+    /**
+     * Created databases tables
+     *
+     * @return bool
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    private function installDb()
+    {
+        return $this->executeSqlScript('install');
+    }
+
+    /**
+     * Removes database tables
+     *
+     * @return bool
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    private function uninstallDb()
+    {
+        return $this->executeSqlScript('uninstall', false);
+    }
+
+    /**
+     * Executes sql script
+     * @param string $script
+     * @param bool $check
+     * @return bool
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public function executeSqlScript($script, $check = true)
+    {
+        $file = dirname(__FILE__) . '/sql/' . $script . '.sql';
+        if (!file_exists($file)) {
+            return false;
+        }
+        $sql = file_get_contents($file);
+        if (!$sql) {
+            return false;
+        }
+        $sql = str_replace(['PREFIX_', 'ENGINE_TYPE', 'CHARSET_TYPE', 'COLLATE_TYPE'], [_DB_PREFIX_, _MYSQL_ENGINE_, 'utf8mb4', 'utf8mb4_unicode_ci'], $sql);
+        $sql = preg_split("/;\s*[\r\n]+/", $sql);
+        foreach ($sql as $statement) {
+            $stmt = trim($statement);
+            if ($stmt) {
+                try {
+                    if (!Db::getInstance()->execute($stmt)) {
+                        PrestaShopLogger::addLog("mailalerts: sql script $script: $stmt: error");
+                        if ($check) {
+                            return false;
+                        }
+                    }
+                } catch (Exception $e) {
+                    PrestaShopLogger::addLog("mailalerts: sql script $script: $stmt: exception: $e");
+                    if ($check) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 }
