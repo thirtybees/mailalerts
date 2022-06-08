@@ -43,17 +43,16 @@ class MailalertsAccountModuleFrontController extends ModuleFrontController
     {
         parent::initContent();
 
-        if (!Context::getContext()->customer->isLogged()) {
+        $customer = Context::getContext()->customer;
+        if (! $customer->isLogged()) {
             Tools::redirect('index.php?controller=authentication&redirect=module&module=mailalerts&action=account');
-        }
-
-        if (Context::getContext()->customer->id) {
-            $this->context->smarty->assign('id_customer', Context::getContext()->customer->id);
-            $this->context->smarty->assign(
-                'mailAlerts',
-                MailAlert::getMailAlerts((int) Context::getContext()->customer->id, (int) Context::getContext()->language->id)
-            );
-
+        } else {
+            $langId = (int)Context::getContext()->language->id;
+            $customerId = (int)$customer->id;
+            $this->context->smarty->assign([
+                'id_customer' => $customerId,
+                'mailAlerts' => MailAlert::getMailAlerts($customerId, $langId)
+            ]);
             $this->setTemplate('mailalerts-account.tpl');
         }
     }

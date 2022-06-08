@@ -108,7 +108,7 @@ class MailAlert extends \ObjectModel
         $where = $idCustomer == 0 ? "customer_email = '$guestEmail'" : "(id_customer=$idCustomer OR customer_email='$customerEmail')";
         $sql = '
 			SELECT *
-			FROM `'._DB_PREFIX_.self::$definition['table'].'`
+			FROM `'._DB_PREFIX_.static::$definition['table'].'`
 			WHERE '.$where.'
 			AND `id_product` = '.(int) $idProduct.'
 			AND `id_product_attribute` = '.(int) $idProductAttribute.'
@@ -122,87 +122,88 @@ class MailAlert extends \ObjectModel
      * @param int $idLang
      * @param \Shop|null $shop
      *
-     * @return array|false|null|\PDOStatement
+     * @return array
      * @throws \PrestaShopDatabaseException
      * @throws \PrestaShopException
      */
     public static function getMailAlerts($idCustomer, $idLang, \Shop $shop = null)
     {
         if (!\Validate::isUnsignedId($idCustomer) || !\Validate::isUnsignedId($idLang)) {
-            die (\Tools::displayError());
+            return [];
         }
+
+        $idCustomer = (int)$idCustomer;
+        $idLang = (int)$idLang;
 
         if (!$shop) {
             $shop = \Context::getContext()->shop;
         }
 
         $customer = new \Customer($idCustomer);
-        $products = static::getProducts($customer, $idLang);
-        $productsNumber = count($products);
 
-        if (empty($products) === true || !$productsNumber) {
-            return [];
-        }
+        $products = [];
+        foreach (static::getProducts($customer, $idLang) as $product) {
+            $productId = (int)$product['id_product'];
+            $productAttributeId = (int)$product['id_product_attribute'];
 
-        for ($i = 0; $i < $productsNumber; ++$i) {
-            $obj = new \Product((int) $products[$i]['id_product'], false, (int) $idLang);
-            if (!\Validate::isLoadedObject($obj)) {
+            $obj = new \Product($productId, false, $idLang);
+            if (! \Validate::isLoadedObject($obj)) {
                 continue;
             }
 
-            if (isset($products[$i]['id_product_attribute']) &&
-                \Validate::isUnsignedInt($products[$i]['id_product_attribute'])
-            ) {
-                $attributes = self::getProductAttributeCombination($products[$i]['id_product_attribute'], $idLang);
-                $products[$i]['attributes_small'] = '';
+            $product['attributes_small'] = '';
+
+            if ($productAttributeId) {
+                $attributes = static::getProductAttributeCombination($product['id_product_attribute'], $idLang);
 
                 if ($attributes) {
                     foreach ($attributes as $row) {
-                        $products[$i]['attributes_small'] .= $row['attribute_name'].', ';
+                        $product['attributes_small'] .= $row['attribute_name'].', ';
                     }
+                    $product['attributes_small'] = rtrim($product['attributes_small'], ', ');
                 }
-
-                $products[$i]['attributes_small'] = rtrim($products[$i]['attributes_small'], ', ');
-                $products[$i]['id_shop'] = $shop->id;
 
                 /* Get cover */
                 $attrgrps = $obj->getAttributesGroups((int) $idLang);
                 foreach ($attrgrps as $attrgrp) {
-                    if ($attrgrp['id_product_attribute'] == (int) $products[$i]['id_product_attribute']
+                    if ($attrgrp['id_product_attribute'] == (int) $product['id_product_attribute']
                         && $images = \Product::_getAttributeImageAssociations((int) $attrgrp['id_product_attribute'])
                     ) {
-                        $products[$i]['cover'] = $obj->id.'-'.array_pop($images);
+                        $product['cover'] = $obj->id.'-'.array_pop($images);
                         break;
                     }
                 }
             }
 
-            if (!isset($products[$i]['cover']) || !$products[$i]['cover']) {
+            if (!isset($product['cover']) || !$product['cover']) {
                 $images = $obj->getImages((int) $idLang);
                 foreach ($images as $image) {
                     if ($image['cover']) {
-                        $products[$i]['cover'] = $obj->id.'-'.$image['id_image'];
+                        $product['cover'] = $obj->id.'-'.$image['id_image'];
                         break;
                     }
                 }
             }
 
-            if (!isset($products[$i]['cover'])) {
-                $products[$i]['cover'] = \Language::getIsoById($idLang).'-default';
+            if (!isset($product['cover'])) {
+                $product['cover'] = \Language::getIsoById($idLang).'-default';
             }
 
-            $products[$i]['link'] = $obj->getLink();
-            $products[$i]['link_rewrite'] = $obj->link_rewrite;
+            $product['id_shop'] = $shop->id;
+            $product['link'] = $obj->getLink();
+            $product['link_rewrite'] = $obj->link_rewrite;
+
+            $products[] = $product;
         }
 
-        return ($products);
+        return $products;
     }
 
     /**
      * @param \Customer $customer
      * @param int $idLang
      *
-     * @return array|false|null|\PDOStatement
+     * @return array
      * @throws \PrestaShopDatabaseException
      * @throws \PrestaShopException
      */
@@ -212,7 +213,7 @@ class MailAlert extends \ObjectModel
 
         $sql = '
 			SELECT ma.`id_product`, p.`quantity` AS product_quantity, pl.`name`, ma.`id_product_attribute`
-			FROM `'._DB_PREFIX_.self::$definition['table'].'` ma
+			FROM `'._DB_PREFIX_.static::$definition['table'].'` ma
 			JOIN `'._DB_PREFIX_.'product` p ON (p.`id_product` = ma.`id_product`)
 			'.\Shop::addSqlAssociation('product', 'p').'
 			LEFT JOIN `'._DB_PREFIX_.'product_lang` pl ON (pl.`id_product` = p.`id_product` AND pl.id_shop IN ('.implode(', ', $listShopIds).'))
@@ -220,7 +221,11 @@ class MailAlert extends \ObjectModel
 			AND (ma.`id_customer` = '.(int) $customer->id.' OR ma.`customer_email` = \''.pSQL($customer->email).'\')
 			AND pl.`id_lang` = '.(int) $idLang.\Shop::addSqlRestriction(false, 'ma');
 
-        return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        $ret = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        if (is_array($ret)) {
+            return $ret;
+        }
+        return [];
     }
 
     /**
@@ -257,7 +262,7 @@ class MailAlert extends \ObjectModel
     {
         $link = new \Link();
         $context = \Context::getContext()->cloneContext();
-        $customers = self::getCustomers($idProduct, $idProductAttribute);
+        $customers = static::getCustomers($idProduct, $idProductAttribute);
 
         foreach ($customers as $customer) {
             $idShop = (int) $customer['id_shop'];
@@ -346,7 +351,7 @@ class MailAlert extends \ObjectModel
     {
         $sql = '
 			SELECT id_customer, customer_email, id_shop, id_lang
-			FROM `'._DB_PREFIX_.self::$definition['table'].'`
+			FROM `'._DB_PREFIX_.static::$definition['table'].'`
 			WHERE `id_product` = '.(int) $idProduct.' AND `id_product_attribute` = '.(int) $idProductAttribute;
 
         return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
@@ -365,7 +370,7 @@ class MailAlert extends \ObjectModel
     public static function deleteAlert($idCustomer, $customerEmail, $idProduct, $idProductAttribute, $idShop = null)
     {
         $sql = '
-			DELETE FROM `'._DB_PREFIX_.self::$definition['table'].'`
+			DELETE FROM `'._DB_PREFIX_.static::$definition['table'].'`
 			WHERE '.(($idCustomer > 0) ? '(`customer_email` = \''.pSQL($customerEmail).'\' OR `id_customer` = '.(int) $idCustomer.')' :
                 '`customer_email` = \''.pSQL($customerEmail).'\'').
             ' AND `id_product` = '.(int) $idProduct.'
