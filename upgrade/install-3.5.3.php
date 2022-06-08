@@ -28,6 +28,12 @@ if (!defined('_TB_VERSION_')) {
     exit;
 }
 
+/**
+ * @param $object
+ * @return bool|mixed
+ * @throws HTMLPurifier_Exception
+ * @throws PrestaShopException
+ */
 function upgrade_module_3_5_3($object)
 {
     $success = true;

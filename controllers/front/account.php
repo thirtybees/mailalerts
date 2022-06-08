@@ -37,6 +37,7 @@ class MailalertsAccountModuleFrontController extends ModuleFrontController
 {
     /**
      * @return void
+     * @throws PrestaShopException
      */
     public function initContent()
     {

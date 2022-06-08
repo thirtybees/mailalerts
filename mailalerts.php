@@ -54,6 +54,7 @@ class MailAlerts extends Module
 
     /**
      * MailAlerts constructor.
+     * @throws PrestaShopException
      */
     public function __construct()
     {
@@ -79,6 +80,7 @@ class MailAlerts extends Module
 
     /**
      * Initialize
+     * @throws PrestaShopException
      */
     protected function init()
     {
@@ -94,6 +96,9 @@ class MailAlerts extends Module
 
     /**
      * @return bool
+     * @throws HTMLPurifier_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public function reset()
     {
@@ -113,6 +118,8 @@ class MailAlerts extends Module
      * @param bool $deleteParams
      *
      * @return bool
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public function uninstall($deleteParams = true)
     {
@@ -139,6 +146,9 @@ class MailAlerts extends Module
      * @param bool $deleteParams
      *
      * @return bool
+     * @throws HTMLPurifier_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public function install($deleteParams = true)
     {
@@ -193,6 +203,10 @@ class MailAlerts extends Module
      * Module configuration page
      *
      * @return string Module HTML
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
+     * @throws HTMLPurifier_Exception
      */
     public function getContent()
     {
@@ -207,6 +221,9 @@ class MailAlerts extends Module
 
     /**
      * Process module configuration
+     *
+     * @throws PrestaShopException
+     * @throws HTMLPurifier_Exception
      */
     protected function postProcess()
     {
@@ -222,7 +239,7 @@ class MailAlerts extends Module
             if (Tools::isSubmit('submitMAMerchant')) {
                 $emails = (string) Tools::getValue('MA_MERCHANT_MAILS');
 
-                if (!$emails || empty($emails)) {
+                if (!$emails) {
                     $errors[] = $this->l('Please type one (or more) e-mail address');
                 } else {
                     $emails = str_replace(',', self::__MA_MAIL_DELIMITOR__, $emails);
@@ -271,6 +288,9 @@ class MailAlerts extends Module
 
     /**
      * @return string
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
      */
     public function renderForm()
     {
@@ -469,6 +489,7 @@ class MailAlerts extends Module
      * Configuration field values
      *
      * @return array
+     * @throws PrestaShopException
      */
     public function getConfigFieldsValues()
     {
@@ -485,6 +506,10 @@ class MailAlerts extends Module
         ];
     }
 
+    /**
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
     public function hookActionValidateOrder($params)
     {
         if (!$this->merchant_order || empty($this->merchant_mails)) {
@@ -518,7 +543,7 @@ class MailAlerts extends Module
         $carrier = new Carrier((int) $order->id_carrier);
         $message = $this->getAllMessages($order->id);
 
-        if (!$message || empty($message)) {
+        if (!$message) {
             $message = $this->l('No message');
         }
 
@@ -597,15 +622,15 @@ class MailAlerts extends Module
             '{firstname}'            => $customer->firstname,
             '{lastname}'             => $customer->lastname,
             '{email}'                => $customer->email,
-            '{delivery_block_txt}'   => MailAlert::getFormatedAddress($delivery, "\n"),
-            '{invoice_block_txt}'    => MailAlert::getFormatedAddress($invoice, "\n"),
-            '{delivery_block_html}'  => MailAlert::getFormatedAddress(
+            '{delivery_block_txt}'   => MailAlert::getFormattedAddress($delivery, "\n"),
+            '{invoice_block_txt}'    => MailAlert::getFormattedAddress($invoice, "\n"),
+            '{delivery_block_html}'  => MailAlert::getFormattedAddress(
                 $delivery, '<br />', [
                     'firstname' => '<span style="color:'.$configuration['PS_MAIL_COLOR'].'; font-weight:bold;">%s</span>',
                     'lastname'  => '<span style="color:'.$configuration['PS_MAIL_COLOR'].'; font-weight:bold;">%s</span>',
                 ]
             ),
-            '{invoice_block_html}'   => MailAlert::getFormatedAddress(
+            '{invoice_block_html}'   => MailAlert::getFormattedAddress(
                 $invoice, '<br />', [
                     'firstname' => '<span style="color:'.$configuration['PS_MAIL_COLOR'].'; font-weight:bold;">%s</span>',
                     'lastname'  => '<span style="color:'.$configuration['PS_MAIL_COLOR'].'; font-weight:bold;">%s</span>',
@@ -619,7 +644,7 @@ class MailAlerts extends Module
             '{delivery_city}'        => $delivery->city,
             '{delivery_postal_code}' => $delivery->postcode,
             '{delivery_country}'     => $delivery->country,
-            '{delivery_state}'       => $delivery->id_state ? $deliveryState->name : '',
+            '{delivery_state}'       => isset($deliveryState) ? $deliveryState->name : '',
             '{delivery_phone}'       => $delivery->phone ? $delivery->phone : $delivery->phone_mobile,
             '{delivery_other}'       => $delivery->other,
             '{invoice_company}'      => $invoice->company,
@@ -630,15 +655,15 @@ class MailAlerts extends Module
             '{invoice_city}'         => $invoice->city,
             '{invoice_postal_code}'  => $invoice->postcode,
             '{invoice_country}'      => $invoice->country,
-            '{invoice_state}'        => $invoice->id_state ? $invoiceState->name : '',
+            '{invoice_state}'        => isset($invoiceState) ? $invoiceState->name : '',
             '{invoice_phone}'        => $invoice->phone ? $invoice->phone : $invoice->phone_mobile,
             '{invoice_other}'        => $invoice->other,
             '{order_name}'           => $order->reference,
             '{order_status}'         => $orderState->name,
             '{shop_name}'            => $configuration['PS_SHOP_NAME'],
             '{date}'                 => $orderDateText,
-            '{carrier}'              => (($carrier->name == '0') ? $configuration['PS_SHOP_NAME'] : $carrier->name),
-            '{payment}'              => Tools::substr($order->payment, 0, 32),
+            '{carrier}'              => $this->getCarrierName($carrier),
+            '{payment}'              => substr($order->payment, 0, 32),
             '{items}'                => $itemsTable,
             '{total_paid}'           => Tools::displayPrice($order->total_paid, $currency),
             '{total_products}'       => Tools::displayPrice($totalProducts, $currency),
@@ -723,6 +748,8 @@ class MailAlerts extends Module
      * @param int $id
      *
      * @return string
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public function getAllMessages($id)
     {
@@ -747,6 +774,9 @@ class MailAlerts extends Module
      * @param array $params
      *
      * @return string
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
      */
     public function hookActionProductOutOfStock($params)
     {
@@ -872,6 +902,8 @@ class MailAlerts extends Module
 
     /**
      * @param array $params
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public function hookActionProductAttributeUpdate($params)
     {
@@ -888,17 +920,19 @@ class MailAlerts extends Module
     }
 
     /**
-     * @param array $params
-     *
      * @return string
+     * @throws PrestaShopException
+     * @throws SmartyException
      */
-    public function hookDisplayMyAccountBlock($params)
+    public function hookDisplayMyAccountBlock()
     {
-        return $this->hookDisplayCustomerAccount($params);
+        return $this->hookDisplayCustomerAccount();
     }
 
     /**
      * @return string
+     * @throws PrestaShopException
+     * @throws SmartyException
      */
     public function hookDisplayCustomerAccount()
     {
@@ -907,6 +941,7 @@ class MailAlerts extends Module
 
     /**
      * @param array $params
+     * @throws PrestaShopException
      */
     public function hookActionProductDelete($params)
     {
@@ -919,6 +954,7 @@ class MailAlerts extends Module
 
     /**
      * @param array $params
+     * @throws PrestaShopException
      */
     public function hookActionProductAttributeDelete($params)
     {
@@ -938,6 +974,8 @@ class MailAlerts extends Module
 
     /**
      * @param array $params
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public function hookActionProductCoverage($params)
     {
@@ -1029,10 +1067,14 @@ class MailAlerts extends Module
         }
     }
 
+    /**
+     * @return void
+     * @throws PrestaShopException
+     */
     public function hookDisplayHeader()
     {
-        $this->page_name = Dispatcher::getInstance()->getController();
-        if (in_array($this->page_name, ['product', 'account'])) {
+        $controller = Dispatcher::getInstance()->getController();
+        if (in_array($controller, ['product', 'account'])) {
             $this->context->controller->addJS($this->_path.'js/mailalerts.js');
             $this->context->controller->addCSS($this->_path.'css/mailalerts.css', 'all');
         }
@@ -1042,10 +1084,13 @@ class MailAlerts extends Module
      * Send a mail when a customer return an order.
      *
      * @param array $params Hook params.
+     * @throws HTMLPurifier_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public function hookActionOrderReturn($params)
     {
-        if (!$this->return_slip || empty($this->return_slip)) {
+        if (!$this->return_slip) {
             return;
         }
 
@@ -1102,15 +1147,15 @@ class MailAlerts extends Module
             '{firstname}'            => $customer->firstname,
             '{lastname}'             => $customer->lastname,
             '{email}'                => $customer->email,
-            '{delivery_block_txt}'   => MailAlert::getFormatedAddress($delivery, "\n"),
-            '{invoice_block_txt}'    => MailAlert::getFormatedAddress($invoice, "\n"),
-            '{delivery_block_html}'  => MailAlert::getFormatedAddress(
+            '{delivery_block_txt}'   => MailAlert::getFormattedAddress($delivery, "\n"),
+            '{invoice_block_txt}'    => MailAlert::getFormattedAddress($invoice, "\n"),
+            '{delivery_block_html}'  => MailAlert::getFormattedAddress(
                 $delivery, '<br />', [
                     'firstname' => '<span style="color:'.$configuration['PS_MAIL_COLOR'].'; font-weight:bold;">%s</span>',
                     'lastname'  => '<span style="color:'.$configuration['PS_MAIL_COLOR'].'; font-weight:bold;">%s</span>',
                 ]
             ),
-            '{invoice_block_html}'   => MailAlert::getFormatedAddress(
+            '{invoice_block_html}'   => MailAlert::getFormattedAddress(
                 $invoice, '<br />', [
                     'firstname' => '<span style="color:'.$configuration['PS_MAIL_COLOR'].'; font-weight:bold;">%s</span>',
                     'lastname'  => '<span style="color:'.$configuration['PS_MAIL_COLOR'].'; font-weight:bold;">%s</span>',
@@ -1124,7 +1169,7 @@ class MailAlerts extends Module
             '{delivery_city}'        => $delivery->city,
             '{delivery_postal_code}' => $delivery->postcode,
             '{delivery_country}'     => $delivery->country,
-            '{delivery_state}'       => $delivery->id_state ? $deliveryState->name : '',
+            '{delivery_state}'       => isset($deliveryState) ? $deliveryState->name : '',
             '{delivery_phone}'       => $delivery->phone ? $delivery->phone : $delivery->phone_mobile,
             '{delivery_other}'       => $delivery->other,
             '{invoice_company}'      => $invoice->company,
@@ -1135,7 +1180,7 @@ class MailAlerts extends Module
             '{invoice_city}'         => $invoice->city,
             '{invoice_postal_code}'  => $invoice->postcode,
             '{invoice_country}'      => $invoice->country,
-            '{invoice_state}'        => $invoice->id_state ? $invoiceState->name : '',
+            '{invoice_state}'        => isset($invoiceState) ? $invoiceState->name : '',
             '{invoice_phone}'        => $invoice->phone ? $invoice->phone : $invoice->phone_mobile,
             '{invoice_other}'        => $invoice->other,
             '{order_name}'           => $order->reference,
@@ -1208,10 +1253,12 @@ class MailAlerts extends Module
      * Send a mail when an order is modified.
      *
      * @param array $params Hook params.
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public function hookActionOrderEdited($params)
     {
-        if (!$this->order_edited || empty($this->order_edited)) {
+        if (!$this->order_edited) {
             return;
         }
 
@@ -1263,5 +1310,25 @@ class MailAlerts extends Module
             true,
             (int) $order->id_shop
         );
+    }
+
+    /**
+     * @param Carrier $carrier
+     * @return string
+     * @throws PrestaShopException
+     * @noinspection PhpDeprecationInspection
+     */
+    protected function getCarrierName(Carrier $carrier)
+    {
+        if (method_exists($carrier, 'getName')) {
+            return $carrier->getName();
+        }
+
+        $name = $carrier->name;
+        if ($name == '0') {
+            return Configuration::get('PS_SHOP_NAME');
+        }
+        return $name;
+
     }
 }

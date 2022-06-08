@@ -45,6 +45,7 @@ class MailalertsActionsModuleFrontController extends ModuleFrontController
 
     /**
      * @return void
+     * @throws PrestaShopException
      */
     public function init()
     {
@@ -56,6 +57,7 @@ class MailalertsActionsModuleFrontController extends ModuleFrontController
 
     /**
      * @return void
+     * @throws PrestaShopException
      */
     public function postProcess()
     {
@@ -74,6 +76,7 @@ class MailalertsActionsModuleFrontController extends ModuleFrontController
 
     /**
      * Remove a favorite product
+     * @throws PrestaShopException
      */
     public function processRemove()
     {
@@ -100,6 +103,7 @@ class MailalertsActionsModuleFrontController extends ModuleFrontController
 
     /**
      * Add a favorite product
+     * @throws PrestaShopException
      */
     public function processAdd()
     {
@@ -147,6 +151,7 @@ class MailalertsActionsModuleFrontController extends ModuleFrontController
 
     /**
      * Add a favorite product
+     * @throws PrestaShopException
      */
     public function processCheck()
     {

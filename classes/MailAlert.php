@@ -35,7 +35,6 @@ if (!defined('_TB_VERSION_')) {
  */
 class MailAlert extends \ObjectModel
 {
-    // @codingStandardsIgnoreStart
     /**
      * @see ObjectModel::$definition
      */
@@ -51,32 +50,53 @@ class MailAlert extends \ObjectModel
             'id_lang'              => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
         ],
     ];
-    public $id_customer;
-    public $customer_email;
-    public $id_product;
-    public $id_product_attribute;
-    public $id_shop;
-    public $id_lang;
-    // @codingStandardsIgnoreEnd
 
     /**
-     * @param int      $idCustomer
-     * @param int      $idProduct
-     * @param int      $idProductAttribute
+     * @var int
+     */
+    public $id_customer;
+
+    /**
+     * @var string
+     */
+    public $customer_email;
+
+    /**
+     * @var int
+     */
+    public $id_product;
+
+    /**
+     * @var int
+     */
+    public $id_product_attribute;
+
+    /**
+     * @var int
+     */
+    public $id_shop;
+
+    /**
+     * @var int
+     */
+    public $id_lang;
+
+    /**
+     * @param int $idCustomer
+     * @param int $idProduct
+     * @param int $idProductAttribute
      * @param int|null $idShop
      * @param int|null $idLang
-     * @param string   $guestEmail
+     * @param string $guestEmail
      *
      * @return int
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
      */
     public static function customerHasNotification($idCustomer, $idProduct, $idProductAttribute, $idShop = null, $idLang = null, $guestEmail = '')
     {
         if (!$idShop) {
             $idShop = \Context::getContext()->shop->id;
-        }
-
-        if (!$idLang) {
-            $idLang = \Context::getContext()->language->id;
         }
 
         $customer = new \Customer($idCustomer);
@@ -98,11 +118,13 @@ class MailAlert extends \ObjectModel
     }
 
     /**
-     * @param int        $idCustomer
-     * @param int        $idLang
+     * @param int $idCustomer
+     * @param int $idLang
      * @param \Shop|null $shop
      *
      * @return array|false|null|\PDOStatement
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
      */
     public static function getMailAlerts($idCustomer, $idLang, \Shop $shop = null)
     {
@@ -178,9 +200,11 @@ class MailAlert extends \ObjectModel
 
     /**
      * @param \Customer $customer
-     * @param int      $idLang
+     * @param int $idLang
      *
      * @return array|false|null|\PDOStatement
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
      */
     public static function getProducts($customer, $idLang)
     {
@@ -204,6 +228,8 @@ class MailAlert extends \ObjectModel
      * @param int $idLang
      *
      * @return array|false|null|\PDOStatement
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
      */
     public static function getProductAttributeCombination($idProductAttribute, $idLang)
     {
@@ -224,6 +250,8 @@ class MailAlert extends \ObjectModel
     /**
      * @param int $idProduct
      * @param int $idProductAttribute
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
      */
     public static function sendCustomerAlert($idProduct, $idProductAttribute)
     {
@@ -311,6 +339,8 @@ class MailAlert extends \ObjectModel
      * @param int $idProductAttribute
      *
      * @return array|false|null|\PDOStatement
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
      */
     public static function getCustomers($idProduct, $idProductAttribute)
     {
@@ -323,13 +353,14 @@ class MailAlert extends \ObjectModel
     }
 
     /**
-     * @param int      $idCustomer
-     * @param int      $customerEmail
-     * @param int      $idProduct
-     * @param int      $idProductAttribute
+     * @param int $idCustomer
+     * @param int $customerEmail
+     * @param int $idProduct
+     * @param int $idProductAttribute
      * @param int|null $idShop
      *
      * @return bool
+     * @throws \PrestaShopException
      */
     public static function deleteAlert($idCustomer, $customerEmail, $idProduct, $idProductAttribute, $idShop = null)
     {
@@ -351,7 +382,7 @@ class MailAlert extends \ObjectModel
      *
      * @return string
      */
-    public static function getFormatedAddress(\Address $address, $lineSep, $fieldsStyle = [])
+    public static function getFormattedAddress(\Address $address, $lineSep, $fieldsStyle = [])
     {
         return \AddressFormat::generateAddress($address, ['avoid' => []], $lineSep, ' ', $fieldsStyle);
     }

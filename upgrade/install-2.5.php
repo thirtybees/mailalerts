@@ -28,6 +28,11 @@ if (!defined('_TB_VERSION_')) {
     exit;
 }
 
+/**
+ * @param $object
+ * @return bool
+ * @throws PrestaShopException
+ */
 function upgrade_module_2_5($object)
 {
     Db::getInstance()->execute(
