@@ -244,19 +244,18 @@ class MailAlerts extends Module
                 } else {
                     $emails = str_replace(',', self::__MA_MAIL_DELIMITOR__, $emails);
                     $emails = explode(self::__MA_MAIL_DELIMITOR__, $emails);
-                    foreach ($emails as $k => $email) {
+                    $validEmails = [];
+                    foreach ($emails as $email) {
                         $email = trim($email);
-                        if (!empty($email) && !Validate::isEmail($email)) {
-                            $errors[] = $this->l('Invalid e-mail:').' '.Tools::safeOutput($email);
-                            break;
-                        } elseif (!empty($email) && count($email) > 0) {
-                            $emails[$k] = $email;
-                        } else {
-                            unset($emails[$k]);
+                        if ($email) {
+                            if (Validate::isEmail($email)) {
+                                $validEmails[] = $email;
+                            } else {
+                                $errors[] = $this->l('Invalid e-mail:').' '.Tools::safeOutput($email);
+                            }
                         }
                     }
-
-                    $emails = implode(self::__MA_MAIL_DELIMITOR__, $emails);
+                    $emails = implode(self::__MA_MAIL_DELIMITOR__, $validEmails);
 
                     if (!Configuration::updateValue('MA_MERCHANT_MAILS', (string) $emails)) {
                         $errors[] = $this->l('Cannot update settings');
