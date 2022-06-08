@@ -16,11 +16,13 @@
  * @license   Academic Free License (AFL 3.0)
  */
 CREATE TABLE IF NOT EXISTS `PREFIX_mailalert_customer_oos` (
+  `id_mailalert_customer_oos` int unsigned NOT NULL AUTO_INCREMENT,
   `id_customer` INT(11) unsigned NOT NULL,
   `customer_email` VARCHAR(128) NOT NULL,
   `id_product` INT(11) unsigned NOT NULL,
   `id_product_attribute` INT(11) unsigned NOT NULL,
   `id_shop` INT(11) unsigned NOT NULL,
   `id_lang` INT(11) unsigned NOT NULL,
-  PRIMARY KEY  (`id_customer`,`customer_email`,`id_product`,`id_product_attribute`,`id_shop`)
+  UNIQUE KEY `cust_prod` (`id_customer`,`customer_email`,`id_product`,`id_product_attribute`,`id_shop`),
+  PRIMARY KEY (`id_mailalert_customer_oos`)
 ) ENGINE=ENGINE_TYPE DEFAULT CHARSET=CHARSET_TYPE COLLATE=COLLATE_TYPE;

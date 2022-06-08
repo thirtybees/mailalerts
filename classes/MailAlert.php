@@ -40,7 +40,7 @@ class MailAlert extends \ObjectModel
      */
     public static $definition = [
         'table'   => 'mailalert_customer_oos',
-        'primary' => 'id_customer',
+        'primary' => 'id_mailalert_customer_oos',
         'fields'  => [
             'id_customer'          => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
             'customer_email'       => ['type' => self::TYPE_STRING, 'validate' => 'isEmail', 'required' => true],
