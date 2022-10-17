@@ -35,26 +35,6 @@ if (!defined('_TB_VERSION_')) {
  */
 class MailalertsActionsModuleFrontController extends ModuleFrontController
 {
-    // @codingStandardsIgnoreStart
-    /**
-     * @var int
-     */
-    public $id_product;
-    public $id_product_attribute;
-    // @codingStandardsIgnoreEnd
-
-    /**
-     * @return void
-     * @throws PrestaShopException
-     */
-    public function init()
-    {
-        parent::init();
-
-        $this->id_product = (int) Tools::getValue('id_product');
-        $this->id_product_attribute = (int) Tools::getValue('id_product_attribute');
-    }
-
     /**
      * @return void
      * @throws PrestaShopException
@@ -80,21 +60,17 @@ class MailalertsActionsModuleFrontController extends ModuleFrontController
      */
     public function processRemove()
     {
-        // check if product exists
-        $product = new Product($this->id_product);
-        if (!Validate::isLoadedObject($product)) {
+        if (! $this->context->customer->isLogged()) {
             die('0');
         }
 
-        $context = Context::getContext();
-        if (MailAlert::deleteAlert(
-            (int) $context->customer->id,
-            (int) $context->customer->email,
-            (int) $product->id,
-            (int) $this->id_product_attribute,
-            (int) $context->shop->id
-        )
-        ) {
+        // check if product exists
+        $idProduct = (int)Tools::getValue('id_product');
+        $idProductAttribute = (int)Tools::getValue('id_product_attribute');
+        $idCustomer = (int)$this->context->customer->id;
+        $customerEmail = $this->context->customer->email;
+
+        if (MailAlert::deleteAlert($idCustomer, $customerEmail, $idProduct, $idProductAttribute)) {
             die('0');
         }
 
@@ -115,27 +91,34 @@ class MailalertsActionsModuleFrontController extends ModuleFrontController
             $customerEmail = (string) $customer->email;
         } else {
             $customerEmail = (string) Tools::getValue('customer_email');
+            if (! Validate::isEmail($customerEmail)) {
+                die('0');
+            }
             $customer = $context->customer->getByEmail($customerEmail);
-            $idCustomer = (isset($customer->id) && ($customer->id != null)) ? (int) $customer->id : null;
+            $idCustomer = Validate::isLoadedObject($customer)
+                ? (int)$customer->id
+                : 0;
         }
 
         $idProduct = (int) Tools::getValue('id_product');
         $idProductAttribute = (int) Tools::getValue('id_product_attribute');
         $idShop = (int) $context->shop->id;
         $idLang = (int) $context->language->id;
-        $product = new Product($idProduct, false, $idLang, $idShop, $context);
 
-        $mailAlert = MailAlert::customerHasNotification($idCustomer, $idProduct, $idProductAttribute, $idShop, null, $customerEmail);
-
-        if ($mailAlert) {
+        // check that email alert does not exist yet
+        if (MailAlert::customerHasNotification($idCustomer, $idProduct, $idProductAttribute, $idShop, $customerEmail)) {
             die('2');
-        } elseif (!Validate::isLoadedObject($product)) {
+        }
+
+        // verify that product exists
+        $product = new Product($idProduct);
+        if (! Validate::isLoadedObject($product)) {
             die('0');
         }
 
         $mailAlert = new MailAlert();
 
-        $mailAlert->id_customer = (int) $idCustomer;
+        $mailAlert->id_customer = $idCustomer;
         $mailAlert->customer_email = (string) $customerEmail;
         $mailAlert->id_product = (int) $idProduct;
         $mailAlert->id_product_attribute = (int) $idProductAttribute;
@@ -155,19 +138,15 @@ class MailalertsActionsModuleFrontController extends ModuleFrontController
      */
     public function processCheck()
     {
-        if (!(int) $this->context->customer->logged) {
+        if (! $this->context->customer->isLogged()) {
             die('0');
         }
 
-        $idCustomer = (int) $this->context->customer->id;
+        $idCustomer = (int)$this->context->customer->id;
+        $idProduct = (int)Tools::getValue('id_product');
+        $idProductAttribute = (int)Tools::getValue('id_product_attribute');
 
-        if (!$idProduct = (int) Tools::getValue('id_product')) {
-            die('0');
-        }
-
-        $idProductAttribute = (int) Tools::getValue('id_product_attribute');
-
-        if (MailAlert::customerHasNotification((int) $idCustomer, (int) $idProduct, (int) $idProductAttribute, (int) $this->context->shop->id)) {
+        if (MailAlert::customerHasNotification($idCustomer, $idProduct, $idProductAttribute)) {
             die('1');
         }
 

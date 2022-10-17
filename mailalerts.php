@@ -508,6 +508,7 @@ class MailAlerts extends Module
         $idLang = (int) $context->language->id;
         $idShop = (int) $context->shop->id;
         $currency = $params['currency'];
+        /** @var Order $order */
         $order = $params['order'];
         $customer = $params['customer'];
         $configuration = Configuration::getMultiple(
@@ -595,12 +596,9 @@ class MailAlerts extends Module
             $invoiceState = new State((int) $invoice->id_state);
         }
 
-        /** @var Order $order */
-        if (Product::getTaxCalculationMethod($customer->id) == PS_TAX_EXC) {
-            $totalProducts = $order->getTotalProductsWithoutTaxes();
-        } else {
-            $totalProducts = $order->getTotalProductsWithTaxes();
-        }
+        $totalProducts = (Product::getTaxCalculationMethod($customer->id) == PS_TAX_EXC)
+            ? $order->getTotalProductsWithoutTaxes()
+            : $order->getTotalProductsWithTaxes();
 
         $orderState = $params['orderStatus'];
 
@@ -779,9 +777,9 @@ class MailAlerts extends Module
         $idProductAttribute = 0;
         $idCustomer = (int) $context->customer->id;
 
-        if ((int) $context->customer->id <= 0) {
+        if ($idCustomer === 0) {
             $this->context->smarty->assign('email', 1);
-        } elseif (MailAlert::customerHasNotification($idCustomer, $idProduct, $idProductAttribute, (int) $context->shop->id)) {
+        } elseif (MailAlert::customerHasNotification($idCustomer, $idProduct, $idProductAttribute)) {
             return '';
         }
 

@@ -92,35 +92,41 @@ class MailAlert extends \ObjectModel
      * @param int $idProduct
      * @param int $idProductAttribute
      * @param int|null $idShop
-     * @param int|null $idLang
      * @param string $guestEmail
      *
-     * @return int
+     * @return boolean
      * @throws \PrestaShopDatabaseException
      * @throws \PrestaShopException
      */
-    public static function customerHasNotification($idCustomer, $idProduct, $idProductAttribute, $idShop = null, $idLang = null, $guestEmail = '')
+    public static function customerHasNotification($idCustomer, $idProduct, $idProductAttribute, $idShop = null, $guestEmail = '')
     {
+        $idCustomer = (int)$idCustomer;
+        $idProduct = (int)$idProduct;
+        $idProductAttribute = (int)$idProductAttribute;
+        $idShop = (int)$idShop;
+
         if (!$idShop) {
-            $idShop = \Context::getContext()->shop->id;
+            $idShop = (int)\Context::getContext()->shop->id;
         }
 
         $customer = new \Customer($idCustomer);
         $customerEmail = $customer->email;
         $guestEmail = pSQL($guestEmail);
-
-        $idCustomer = (int) $idCustomer;
         $customerEmail = pSQL($customerEmail);
-        $where = $idCustomer == 0 ? "customer_email = '$guestEmail'" : "(id_customer=$idCustomer OR customer_email='$customerEmail')";
+
+        $where = $idCustomer == 0
+            ? "customer_email = '$guestEmail'"
+            : "(id_customer=$idCustomer OR customer_email='$customerEmail')";
+
         $sql = '
-			SELECT *
+			SELECT 1
 			FROM `'._DB_PREFIX_.static::$definition['table'].'`
 			WHERE '.$where.'
-			AND `id_product` = '.(int) $idProduct.'
-			AND `id_product_attribute` = '.(int) $idProductAttribute.'
-			AND `id_shop` = '.(int) $idShop;
+			AND `id_product` = '.$idProduct.'
+			AND `id_product_attribute` = '.$idProductAttribute.'
+			AND `id_shop` = '.$idShop;
 
-        return count(\Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql));
+        return (bool)\Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
     }
 
     /**
@@ -365,7 +371,7 @@ class MailAlert extends \ObjectModel
 
     /**
      * @param int $idCustomer
-     * @param int $customerEmail
+     * @param string $customerEmail
      * @param int $idProduct
      * @param int $idProductAttribute
      * @param int|null $idShop
