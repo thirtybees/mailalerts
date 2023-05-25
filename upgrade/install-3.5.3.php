@@ -29,9 +29,9 @@ if (!defined('_TB_VERSION_')) {
 }
 
 /**
- * @param $object
- * @return bool|mixed
- * @throws HTMLPurifier_Exception
+ * @param MailAlerts $object
+ *
+ * @return bool
  * @throws PrestaShopException
  */
 function upgrade_module_3_5_3($object)
@@ -39,11 +39,11 @@ function upgrade_module_3_5_3($object)
     $success = true;
 
     if (!$object->isRegisteredInHook('actionOrderEdited')) {
-        $success &= $object->registerHook('actionOrderEdited');
+        $success = $object->registerHook('actionOrderEdited');
     }
 
     if (!$object->isRegisteredInHook('actionOrderReturn')) {
-        $success &= $object->registerHook('actionOrderReturn');
+        $success = $object->registerHook('actionOrderReturn') && $success;
     }
 
     Configuration::updateValue('MA_ORDER_EDIT', 1);

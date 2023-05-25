@@ -29,7 +29,7 @@ if (!defined('_TB_VERSION_')) {
 }
 
 /**
- * @param $object
+ * @param MailAlerts $object
  * @return bool
  * @throws PrestaShopException
  */

@@ -96,7 +96,6 @@ class MailAlerts extends Module
 
     /**
      * @return bool
-     * @throws HTMLPurifier_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -145,7 +144,6 @@ class MailAlerts extends Module
      * @param bool $deleteParams
      *
      * @return bool
-     * @throws HTMLPurifier_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -194,7 +192,6 @@ class MailAlerts extends Module
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
-     * @throws HTMLPurifier_Exception
      */
     public function getContent()
     {
@@ -211,7 +208,6 @@ class MailAlerts extends Module
      * Process module configuration
      *
      * @throws PrestaShopException
-     * @throws HTMLPurifier_Exception
      */
     protected function postProcess()
     {
@@ -449,6 +445,8 @@ class MailAlerts extends Module
             ],
         ];
 
+        /** @var AdminController $controller */
+        $controller = $this->context->controller;
         $helper = new HelperForm();
         $helper->show_toolbar = false;
         $helper->table = $this->table;
@@ -465,7 +463,7 @@ class MailAlerts extends Module
         $helper->token = Tools::getAdminTokenLite('AdminModules');
         $helper->tpl_vars = [
             'fields_value' => $this->getConfigFieldsValues(),
-            'languages'    => $this->context->controller->getLanguages(),
+            'languages'    => $controller->getLanguages(),
             'id_language'  => $this->context->language->id,
         ];
 
@@ -1069,7 +1067,7 @@ class MailAlerts extends Module
      * Send a mail when a customer return an order.
      *
      * @param array $params Hook params.
-     * @throws HTMLPurifier_Exception
+     *
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */

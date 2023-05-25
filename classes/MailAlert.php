@@ -95,7 +95,6 @@ class MailAlert extends \ObjectModel
      * @param string $guestEmail
      *
      * @return boolean
-     * @throws \PrestaShopDatabaseException
      * @throws \PrestaShopException
      */
     public static function customerHasNotification($idCustomer, $idProduct, $idProductAttribute, $idShop = null, $guestEmail = '')
@@ -395,10 +394,11 @@ class MailAlert extends \ObjectModel
 
     /**
      * @param \Address $address
-     * @param string   $lineSep
-     * @param array    $fieldsStyle
+     * @param string $lineSep
+     * @param array $fieldsStyle
      *
      * @return string
+     * @throws \PrestaShopException
      */
     public static function getFormattedAddress(\Address $address, $lineSep, $fieldsStyle = [])
     {
