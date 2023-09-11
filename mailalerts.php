@@ -286,7 +286,6 @@ class MailAlerts extends Module
                 'input'  => [
                     [
                         'type'    => 'switch',
-                        'is_bool' => true, //retro compat 1.5
                         'label'   => $this->l('Product availability'),
                         'name'    => 'MA_CUSTOMER_QTY',
                         'desc'    => $this->l('Gives the customer the option of receiving a notification when an out-of-stock product is available again.'),
@@ -305,7 +304,6 @@ class MailAlerts extends Module
                     ],
                     [
                         'type'    => 'switch',
-                        'is_bool' => true, //retro compat 1.5
                         'label'   => $this->l('Order edit'),
                         'name'    => 'MA_ORDER_EDIT',
                         'desc'    => $this->l('Send a notification to the customer when an order is edited.'),
@@ -340,7 +338,6 @@ class MailAlerts extends Module
                 'input'  => [
                     [
                         'type'    => 'switch',
-                        'is_bool' => true, //retro compat 1.5
                         'label'   => $this->l('New order'),
                         'name'    => 'MA_MERCHANT_ORDER',
                         'desc'    => $this->l('Receive a notification when an order is placed.'),
@@ -359,7 +356,6 @@ class MailAlerts extends Module
                     ],
                     [
                         'type'    => 'switch',
-                        'is_bool' => true, //retro compat 1.5
                         'label'   => $this->l('Out of stock'),
                         'name'    => 'MA_MERCHANT_OOS',
                         'desc'    => $this->l('Receive a notification if the available quantity of a product is below the following threshold.'),
@@ -385,7 +381,6 @@ class MailAlerts extends Module
                     ],
                     [
                         'type'    => 'switch',
-                        'is_bool' => true, //retro compat 1.5
                         'label'   => $this->l('Coverage warning'),
                         'name'    => 'MA_MERCHANT_COVERAGE',
                         'desc'    => $this->l('Receive a notification when a product has insufficient coverage.'),
@@ -411,7 +406,6 @@ class MailAlerts extends Module
                     ],
                     [
                         'type'    => 'switch',
-                        'is_bool' => true, //retro compat 1.5
                         'label'   => $this->l('Returns'),
                         'name'    => 'MA_RETURN_SLIP',
                         'desc'    => $this->l('Receive a notification when a customer requests a merchandise return.'),
