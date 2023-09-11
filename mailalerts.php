@@ -200,6 +200,10 @@ class MailAlerts extends Module
         $this->postProcess();
 
         $this->html .= $this->renderForm();
+        if ($this->customer_qty) {
+            $this->html .= "<a id='subscribers'></a>";
+            $this->html .= $this->renderList();
+        }
 
         return $this->html;
     }
@@ -463,6 +467,165 @@ class MailAlerts extends Module
 
         return $helper->generateForm([$fieldsForm1, $fieldsForm2]);
     }
+
+    /**
+     * @return false|string
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
+     */
+    protected function renderList()
+    {
+        $productId = Tools::getValue('id_product');
+
+        if ($productId) {
+            $product = new Product($productId);
+
+            $listFields = [
+                'combination_name' => [
+                    'title' => $this->l('Combination'),
+                    'type' => 'text',
+                ],
+                'customer_name' => [
+                    'title' => $this->l('Customer'),
+                    'type' => 'text',
+                    'callback_object' => $this,
+                    'callback' => 'renderCustomer'
+                ],
+                'customer_email' => [
+                    'title' => $this->l('Email'),
+                    'type' => 'text',
+                ],
+                'date_add' => [
+                    'title' => $this->l('Date'),
+                    'type' => 'text',
+                ],
+            ];
+
+            if (! $product->hasAttributes()) {
+                unset($listFields['combination_name']);
+            }
+
+            $helper = new HelperList();
+            $helper->shopLinkType = '';
+            $helper->simple_header = true;
+            $helper->identifier = 'id_mailalert_customer_oos';
+            $helper->actions = [];
+            $helper->show_toolbar = false;
+            $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
+                'configure' => 'mailalerts',
+                'module_name' => 'mailalerts',
+            ]);
+            $helper->title = Translate::ppTags(sprintf($this->l('Notification for product %s. [1]Show all[/1]'), $productId),  ['<a href="'.$url.'#subscribers">']);
+            $helper->table = $this->name;
+            $helper->token = Tools::getAdminTokenLite('AdminModules');
+            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+            $content = $this->getProductListSubscribers($productId);
+            $helper->listTotal = count($content);
+            return $helper->generateList($content, $listFields);
+        } else {
+            $listFields = [
+                'id_product' => [
+                    'title' => $this->l('Product ID'),
+                    'type' => 'text',
+                ],
+                'product_name' => [
+                    'title' => $this->l('Product Name'),
+                    'type' => 'text',
+                    'callback_object' => $this,
+                    'callback' => 'renderProduct'
+                ],
+                'cnt' => [
+                    'title' => $this->l('Number of subscribers'),
+                    'type' => 'text',
+                    'callback_object' => $this,
+                    'callback' => 'renderCnt'
+                ],
+            ];
+
+            $helper = new HelperList();
+            $helper->shopLinkType = '';
+            $helper->simple_header = true;
+            $helper->identifier = 'id_product';
+            $helper->actions = [];
+            $helper->show_toolbar = false;
+            $helper->title = $this->l('Products with notifications');
+            $helper->table = $this->name;
+            $helper->token = Tools::getAdminTokenLite('AdminModules');
+            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+            $content = $this->getProductsSubscribers();
+            $helper->listTotal = count($content);
+            return $helper->generateList($content, $listFields);
+        }
+    }
+
+    /**
+     * Get list content
+     *
+     * @return array
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    protected function getProductsSubscribers()
+    {
+        $langId = (int)Context::getContext()->language->id;
+        $conn = Db::getInstance();
+        $sql = (new DbQuery())
+            ->select('oos.id_product')
+            ->select('pl.name AS product_name')
+            ->select('COUNT(1) as cnt')
+            ->from('mailalert_customer_oos', 'oos')
+            ->leftJoin('product_lang', 'pl', 'pl.id_lang = '.$langId.' AND pl.id_product = oos.id_product AND pl.id_shop = oos.id_shop')
+            ->where('1' . Shop::addSqlRestriction(false, 'oos'))
+            ->orderBy('COUNT(1) DESC')
+            ->groupBy('oos.id_product')
+            ->groupBy('pl.name');
+        return $conn->executeS($sql);
+    }
+
+    /**
+     * Get list content
+     *
+     * @param int $productId
+     *
+     * @return array
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    protected function getProductListSubscribers($productId)
+    {
+        $langId = (int)Context::getContext()->language->id;
+        $conn = Db::getInstance();
+        $sql = (new DbQuery())
+            ->select('oos.id_mailalert_customer_oos')
+            ->select('oos.id_customer')
+            ->select('IF(oos.id_product_attribute > 0, oos.id_product_attribute, NULL)')
+            ->select('oos.customer_email')
+            ->select('oos.date_add')
+            ->select('COALESCE((
+                            SELECT GROUP_CONCAT(al.`name` ORDER BY agl.`id_attribute_group` SEPARATOR \', \')
+                             FROM `' . _DB_PREFIX_ . 'product_attribute_combination` pac
+                             LEFT JOIN `' . _DB_PREFIX_ . 'attribute` a ON a.`id_attribute` = pac.`id_attribute`
+                             LEFT JOIN `' . _DB_PREFIX_ . 'attribute_group` ag ON ag.`id_attribute_group` = a.`id_attribute_group`
+                             LEFT JOIN `' . _DB_PREFIX_ . 'attribute_lang` al ON (a.`id_attribute` = al.`id_attribute` AND al.`id_lang` = ' . (int)Context::getContext()->language->id . ')
+                             LEFT JOIN `' . _DB_PREFIX_ . 'attribute_group_lang` agl ON (ag.`id_attribute_group` = agl.`id_attribute_group` AND agl.`id_lang` = ' . (int)Context::getContext()->language->id . ')
+                             WHERE pac.id_product_attribute  = oos.id_product_attribute
+                             GROUP BY pac.id_product_attribute
+                    ), \'-\') AS combination_name')
+            ->select('IF(cust.id_customer, CONCAT(cust.firstname, " ", cust.lastname), NULL) AS customer_name')
+            ->from('mailalert_customer_oos', 'oos')
+            ->leftJoin('product_lang', 'pl', 'pl.id_lang = ' . $langId . ' AND pl.id_product = oos.id_product AND pl.id_shop = oos.id_shop')
+            ->leftJoin('customer', 'cust', 'oos.id_customer = cust.id_customer')
+            ->where('oos.id_product = ' . $productId . Shop::addSqlRestriction(false, 'oos'))
+            ->orderBy('oos.id_product')
+            ->orderBy('oos.id_product_attribute')
+            ->orderBy('oos.date_add');
+        return $conn->executeS($sql);
+    }
+
 
     /**
      * Configuration field values
@@ -1373,5 +1536,60 @@ class MailAlerts extends Module
             }
         }
         return true;
+    }
+
+    /**
+     * @param string $value
+     * @param array $row
+     *
+     * @return string
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public function renderCustomer($value, $row)
+    {
+        $customerId = (int)$row['id_customer'];
+        $url = Context::getContext()->link->getAdminLink('AdminCustomers', true, [
+            'id_customer' => $customerId,
+            'viewcustomer' => 1
+        ]);
+        return '<a href="'.$url.'">'.Tools::safeOutput($value).'</a>';
+    }
+
+    /**
+     * @param string $value
+     * @param array $row
+     *
+     * @return string
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public function renderProduct($value, $row)
+    {
+        $productId = (int)$row['id_product'];
+        $url = Context::getContext()->link->getAdminLink('AdminProducts', true, [
+            'id_product' => $productId,
+            'updateproduct' => 1
+        ]);
+        return '<a href="'.$url.'">'.Tools::safeOutput($value).'</a>';
+    }
+
+    /**
+     * @param string $value
+     * @param array $row
+     *
+     * @return string
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public function renderCnt($value, $row)
+    {
+        $productId = (int)$row['id_product'];
+        $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
+            'configure' => 'mailalerts',
+            'module_name' => 'mailalerts',
+            'id_product' => $productId,
+        ]);
+        return '<a href="'.$url.'#subscribers">'.Tools::safeOutput($value).'</a>';
     }
 }
