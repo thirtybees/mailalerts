@@ -530,6 +530,12 @@ class MailAlerts extends Module
                     'title' => $this->l('Product ID'),
                     'type' => 'text',
                 ],
+                'reference' => [
+                    'title' => $this->l('Reference'),
+                    'type' => 'text',
+                    'callback_object' => $this,
+                    'callback' => 'renderProduct'
+                ],
                 'product_name' => [
                     'title' => $this->l('Product Name'),
                     'type' => 'text',
@@ -574,10 +580,12 @@ class MailAlerts extends Module
         $conn = Db::getInstance();
         $sql = (new DbQuery())
             ->select('oos.id_product')
-            ->select('pl.name AS product_name')
+            ->select('NULLIF(p.reference, "") AS reference')
+            ->select('NULLIF(pl.name, "") AS product_name')
             ->select('COUNT(1) as cnt')
             ->from('mailalert_customer_oos', 'oos')
             ->leftJoin('product_lang', 'pl', 'pl.id_lang = '.$langId.' AND pl.id_product = oos.id_product AND pl.id_shop = oos.id_shop')
+            ->leftJoin('product', 'p', 'p.id_product = oos.id_product')
             ->where('1' . Shop::addSqlRestriction(false, 'oos'))
             ->orderBy('COUNT(1) DESC')
             ->groupBy('oos.id_product')
