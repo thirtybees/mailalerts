@@ -479,10 +479,16 @@ class MailAlerts extends Module
      */
     protected function renderList()
     {
-        $productId = Tools::getValue('id_product');
+        $productId = (int)Tools::getValue('id_product');
 
         if ($productId) {
-            $product = new Product($productId);
+            $product = new Product($productId, false, $this->context->language->id);
+
+            if (Validate::isLoadedObject($product)) {
+                $productName = $product->name;
+            } else {
+                $productName = $this->l('Deleted product');
+            }
 
             $listFields = [
                 'combination_name' => [
@@ -519,7 +525,7 @@ class MailAlerts extends Module
                 'configure' => 'mailalerts',
                 'module_name' => 'mailalerts',
             ]);
-            $helper->title = Translate::ppTags(sprintf($this->l('Notification for product %s. [1]Show all[/1]'), $productId),  ['<a href="'.$url.'#subscribers">']);
+            $helper->title = Translate::ppTags(sprintf($this->l('Notification for "%s". [1]Show all[/1]'), $productName, $productId),  ['<a href="'.$url.'#subscribers">']);
             $helper->table = $this->name;
             $helper->token = Tools::getAdminTokenLite('AdminModules');
             $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
