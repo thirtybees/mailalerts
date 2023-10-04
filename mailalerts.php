@@ -215,17 +215,19 @@ class MailAlerts extends Module
      */
     protected function postProcess()
     {
-        $errors = [];
+        if (Tools::isSubmit('submitMailAlert') || Tools::isSubmit('submitMAMerchant')) {
+            $errors = [];
 
-        if (Tools::isSubmit('submitMailAlert')) {
-            if (!Configuration::updateValue('MA_CUSTOMER_QTY', (int) Tools::getValue('MA_CUSTOMER_QTY'))) {
-                $errors[] = $this->l('Cannot update settings');
-            } elseif (!Configuration::updateGlobalValue('MA_ORDER_EDIT', (int) Tools::getValue('MA_ORDER_EDIT'))) {
-                $errors[] = $this->l('Cannot update settings');
+            if (Tools::isSubmit('submitMailAlert')) {
+                if (!Configuration::updateValue('MA_CUSTOMER_QTY', (int)Tools::getValue('MA_CUSTOMER_QTY'))) {
+                    $errors[] = $this->l('Cannot update settings');
+                } elseif (!Configuration::updateGlobalValue('MA_ORDER_EDIT', (int)Tools::getValue('MA_ORDER_EDIT'))) {
+                    $errors[] = $this->l('Cannot update settings');
+                }
             }
-        } else {
+
             if (Tools::isSubmit('submitMAMerchant')) {
-                $emails = (string) Tools::getValue('MA_MERCHANT_MAILS');
+                $emails = (string)Tools::getValue('MA_MERCHANT_MAILS');
 
                 if (!$emails) {
                     $errors[] = $this->l('Please type one (or more) e-mail address');
@@ -239,35 +241,35 @@ class MailAlerts extends Module
                             if (Validate::isEmail($email)) {
                                 $validEmails[] = $email;
                             } else {
-                                $errors[] = $this->l('Invalid e-mail:').' '.Tools::safeOutput($email);
+                                $errors[] = $this->l('Invalid e-mail:') . ' ' . Tools::safeOutput($email);
                             }
                         }
                     }
                     $emails = implode(self::__MA_MAIL_DELIMITOR__, $validEmails);
 
-                    if (!Configuration::updateValue('MA_MERCHANT_MAILS', (string) $emails)) {
+                    if (!Configuration::updateValue('MA_MERCHANT_MAILS', (string)$emails)) {
                         $errors[] = $this->l('Cannot update settings');
-                    } elseif (!Configuration::updateValue('MA_MERCHANT_ORDER', (int) Tools::getValue('MA_MERCHANT_ORDER'))) {
+                    } elseif (!Configuration::updateValue('MA_MERCHANT_ORDER', (int)Tools::getValue('MA_MERCHANT_ORDER'))) {
                         $errors[] = $this->l('Cannot update settings');
-                    } elseif (!Configuration::updateValue('MA_MERCHANT_OOS', (int) Tools::getValue('MA_MERCHANT_OOS'))) {
+                    } elseif (!Configuration::updateValue('MA_MERCHANT_OOS', (int)Tools::getValue('MA_MERCHANT_OOS'))) {
                         $errors[] = $this->l('Cannot update settings');
-                    } elseif (!Configuration::updateValue('MA_LAST_QTIES', (int) Tools::getValue('MA_LAST_QTIES'))) {
+                    } elseif (!Configuration::updateValue('MA_LAST_QTIES', (int)Tools::getValue('MA_LAST_QTIES'))) {
                         $errors[] = $this->l('Cannot update settings');
-                    } elseif (!Configuration::updateGlobalValue('MA_MERCHANT_COVERAGE', (int) Tools::getValue('MA_MERCHANT_COVERAGE'))) {
+                    } elseif (!Configuration::updateGlobalValue('MA_MERCHANT_COVERAGE', (int)Tools::getValue('MA_MERCHANT_COVERAGE'))) {
                         $errors[] = $this->l('Cannot update settings');
-                    } elseif (!Configuration::updateGlobalValue('MA_PRODUCT_COVERAGE', (int) Tools::getValue('MA_PRODUCT_COVERAGE'))) {
+                    } elseif (!Configuration::updateGlobalValue('MA_PRODUCT_COVERAGE', (int)Tools::getValue('MA_PRODUCT_COVERAGE'))) {
                         $errors[] = $this->l('Cannot update settings');
-                    } elseif (!Configuration::updateGlobalValue('MA_RETURN_SLIP', (int) Tools::getValue('MA_RETURN_SLIP'))) {
+                    } elseif (!Configuration::updateGlobalValue('MA_RETURN_SLIP', (int)Tools::getValue('MA_RETURN_SLIP'))) {
                         $errors[] = $this->l('Cannot update settings');
                     }
                 }
             }
-        }
 
-        if (count($errors) > 0) {
-            $this->html .= $this->displayError(implode('<br />', $errors));
-        } else {
-            $this->html .= $this->displayConfirmation($this->l('Settings updated successfully'));
+            if (count($errors) > 0) {
+                $this->html .= $this->displayError(implode('<br />', $errors));
+            } else {
+                $this->html .= $this->displayConfirmation($this->l('Settings updated successfully'));
+            }
         }
 
         $this->init();
