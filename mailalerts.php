@@ -48,7 +48,7 @@ class MailAlerts extends Module
     const CUSTOMER_NOTIFICATION_WHEN_NOT_AVAILABLE = 2;
 
     /**
-     * @var string
+     * @var string[]
      */
     protected $merchant_mails;
 
@@ -119,7 +119,7 @@ class MailAlerts extends Module
      */
     protected function init()
     {
-        $this->merchant_mails = str_replace(',', self::__MA_MAIL_DELIMITOR__, (string) Configuration::get('MA_MERCHANT_MAILS'));
+        $this->merchant_mails = static::getMerchantEmails();
         $this->merchant_order = (int) Configuration::get('MA_MERCHANT_ORDER');
         $this->merchant_oos = (int) Configuration::get('MA_MERCHANT_OOS');
         $this->customer_qty = (int) Configuration::get('MA_CUSTOMER_QTY');
@@ -707,7 +707,7 @@ class MailAlerts extends Module
             'MA_LAST_QTIES'        => Tools::getValue('MA_LAST_QTIES', Configuration::get('MA_LAST_QTIES')),
             'MA_MERCHANT_COVERAGE' => Tools::getValue('MA_MERCHANT_COVERAGE', Configuration::get('MA_MERCHANT_COVERAGE')),
             'MA_PRODUCT_COVERAGE'  => Tools::getValue('MA_PRODUCT_COVERAGE', Configuration::get('MA_PRODUCT_COVERAGE')),
-            'MA_MERCHANT_MAILS'    => Tools::getValue('MA_MERCHANT_MAILS', Configuration::get('MA_MERCHANT_MAILS')),
+            'MA_MERCHANT_MAILS'    => Tools::getValue('MA_MERCHANT_MAILS', implode(static::__MA_MAIL_DELIMITOR__, static::getMerchantEmails())),
             'MA_ORDER_EDIT'        => Tools::getValue('MA_ORDER_EDIT', Configuration::get('MA_ORDER_EDIT')),
             'MA_RETURN_SLIP'       => Tools::getValue('MA_RETURN_SLIP', Configuration::get('MA_RETURN_SLIP')),
         ];
@@ -719,7 +719,7 @@ class MailAlerts extends Module
      */
     public function hookActionValidateOrder($params)
     {
-        if (!$this->merchant_order || empty($this->merchant_mails)) {
+        if (!$this->merchant_order || !$this->merchant_mails) {
             return;
         }
 
@@ -890,8 +890,7 @@ class MailAlerts extends Module
         $iso = Language::getIsoById((int) Configuration::get('PS_LANG_DEFAULT'));
 
         // Send 1 email by merchant mail, because Mail::Send doesn't work with an array of recipients
-        $merchantMails = explode(static::__MA_MAIL_DELIMITOR__, $this->merchant_mails);
-        foreach ($merchantMails as $merchantMail) {
+        foreach ($this->merchant_mails as $merchantMail) {
             // Default language
             $mailIdLang = $idLang;
             $mailIso = $iso;
@@ -1087,8 +1086,7 @@ class MailAlerts extends Module
             // Do not send mail if multiples product are created / imported.
             if (!defined('PS_MASS_PRODUCT_CREATION') && $dirMail) {
                 // Send 1 email by merchant mail, because Mail::Send doesn't work with an array of recipients
-                $merchantMails = explode(static::__MA_MAIL_DELIMITOR__, $this->merchant_mails);
-                foreach ($merchantMails as $merchantMail) {
+                foreach ($this->merchant_mails as $merchantMail) {
                     Mail::Send(
                         $idLang,
                         'productoutofstock',
@@ -1225,7 +1223,8 @@ class MailAlerts extends Module
 
         // if we need to send a notification
         if ($product->active == 1 &&
-            ($coverage < $warningCoverage) && !empty($this->merchant_mails) &&
+            $coverage < $warningCoverage &&
+            $this->merchant_mails &&
             Configuration::getGlobalValue('MA_MERCHANT_COVERAGE')
         ) {
             $context = Context::getContext();
@@ -1258,8 +1257,7 @@ class MailAlerts extends Module
 
             if ($dirMail) {
                 // Send 1 email by merchant mail, because Mail::Send doesn't work with an array of recipients
-                $merchantMails = explode(static::__MA_MAIL_DELIMITOR__, $this->merchant_mails);
-                foreach ($merchantMails as $merchantMail) {
+                foreach ($this->merchant_mails as $merchantMail) {
                     Mail::Send(
                         $idLang,
                         'productcoverage',
@@ -1404,8 +1402,7 @@ class MailAlerts extends Module
         ];
 
         // Send 1 email by merchant mail, because Mail::Send doesn't work with an array of recipients
-        $merchantMails = explode(static::__MA_MAIL_DELIMITOR__, $this->merchant_mails);
-        foreach ($merchantMails as $merchantMail) {
+        foreach ($this->merchant_mails as $merchantMail) {
             // Default language
             $mailIdLang = $idLang;
             $mailIso = $iso;
@@ -1664,5 +1661,22 @@ class MailAlerts extends Module
             'id_product' => $productId,
         ]);
         return '<a href="'.$url.'#subscribers">'.Tools::safeOutput($value).'</a>';
+    }
+
+
+    /**
+     * @return string[]
+     *
+     * @throws PrestaShopException
+     */
+    protected static function getMerchantEmails()
+    {
+        $emailsStr = (string) Configuration::get('MA_MERCHANT_MAILS');
+        $emailsStr = str_replace(',', self::__MA_MAIL_DELIMITOR__, $emailsStr);
+        $emails = explode(static::__MA_MAIL_DELIMITOR__, $emailsStr);
+        $emails = array_filter(array_map('trim', $emails));
+        $emails = array_filter($emails, [Validate::class, 'isEmail']);
+        $emails = array_unique($emails);
+        return $emails;
     }
 }
