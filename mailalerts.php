@@ -42,14 +42,49 @@ require_once __DIR__.'/classes/autoload.php';
 class MailAlerts extends Module
 {
     const __MA_MAIL_DELIMITOR__ = "\n";
-    protected $html = '';
+
+    const CUSTOMER_NOTIFICATION_DISABLED = 0;
+    const CUSTOMER_NOTIFICATION_WHEN_CANT_ORDER = 1;
+    const CUSTOMER_NOTIFICATION_WHEN_NOT_AVAILABLE = 2;
+
+    /**
+     * @var string
+     */
     protected $merchant_mails;
+
+    /**
+     * @var int
+     */
     protected $merchant_order;
+
+    /**
+     * @var int
+     */
     protected $merchant_oos;
+
+    /**
+     * @var int
+     */
     protected $customer_qty;
+
+    /**
+     * @var int
+     */
     protected $merchant_coverage;
+
+    /**
+     * @var int
+     */
     protected $product_coverage;
+
+    /**
+     * @var int
+     */
     protected $order_edited;
+
+    /**
+     * @var int
+     */
     protected $return_slip;
 
     /**
@@ -195,21 +230,21 @@ class MailAlerts extends Module
      */
     public function getContent()
     {
-        $this->html = '';
+        $html = $this->postProcess();
 
-        $this->postProcess();
-
-        $this->html .= $this->renderForm();
+        $html .= $this->renderForm();
         if ($this->customer_qty) {
-            $this->html .= "<a id='subscribers'></a>";
-            $this->html .= $this->renderList();
+            $html .= "<a id='subscribers'></a>";
+            $html .= $this->renderList();
         }
 
-        return $this->html;
+        return $html;
     }
 
     /**
      * Process module configuration
+     *
+     * @return string
      *
      * @throws PrestaShopException
      */
@@ -265,14 +300,16 @@ class MailAlerts extends Module
                 }
             }
 
+            $this->init();
+
             if (count($errors) > 0) {
-                $this->html .= $this->displayError(implode('<br />', $errors));
+                return $this->displayError(implode('<br />', $errors));
             } else {
-                $this->html .= $this->displayConfirmation($this->l('Settings updated successfully'));
+                return $this->displayConfirmation($this->l('Settings updated successfully'));
             }
         }
 
-        $this->init();
+        return '';
     }
 
     /**
@@ -291,22 +328,34 @@ class MailAlerts extends Module
                 ],
                 'input'  => [
                     [
-                        'type'    => 'switch',
-                        'label'   => $this->l('Product availability'),
+                        'type'    => 'select',
+                        'label'   => $this->l('Out of stock notification'),
                         'name'    => 'MA_CUSTOMER_QTY',
-                        'desc'    => $this->l('Gives the customer the option of receiving a notification when an out-of-stock product is available again.'),
-                        'values'  => [
-                            [
-                                'id'    => 'active_on',
-                                'value' => 1,
-                                'label' => $this->l('Enabled'),
+                        'hint'    => $this->l('Gives the customer the option to enter mail address and receive notification when an out-of-stock product is available again.'),
+                        'options' => [
+                            'query' => [
+                                [
+                                    'id' => static::CUSTOMER_NOTIFICATION_DISABLED,
+                                    'name' => $this->l('Disabled')
+                                ],
+                                [
+                                    'id' => static::CUSTOMER_NOTIFICATION_WHEN_CANT_ORDER,
+                                    'name' => $this->l('When product can\'t be ordered')
+                                ],
+                                [
+                                    'id' => static::CUSTOMER_NOTIFICATION_WHEN_NOT_AVAILABLE,
+                                    'name' => $this->l('When product is not available')
+                                ],
                             ],
-                            [
-                                'id'    => 'active_off',
-                                'value' => 0,
-                                'label' => $this->l('Disabled'),
-                            ],
+                            'id'    => 'id',
+                            'name'  => 'name',
                         ],
+                        'desc' => (
+                            $this->l('Display email notification form when product is not available. You can choose:') . '<ul>' .
+                            '<li>' . Translate::ppTags($this->l('[1]When product can\'t be ordered[/1]: display subscription form when product is not in stock, and customer can\'t order it'), ['<b>']) . '</li>' .
+                            '<li>' . Translate::ppTags($this->l('[1]When product is not available[/1]: display subscription form when product is currently not in stock, even if customer can order it'), ['<b>']) . '</li>' .
+                            '</ul>'
+                        )
                     ],
                     [
                         'type'    => 'switch',
@@ -936,12 +985,20 @@ class MailAlerts extends Module
      */
     public function hookActionProductOutOfStock($params)
     {
-        if (!$this->customer_qty ||
-            !Configuration::get('PS_STOCK_MANAGEMENT') ||
+        if (! Configuration::get('PS_STOCK_MANAGEMENT')) {
+            return '';
+        }
+
+        if ($this->customer_qty === static::CUSTOMER_NOTIFICATION_DISABLED) {
+            return '';
+        }
+
+        if ($this->customer_qty === static::CUSTOMER_NOTIFICATION_WHEN_CANT_ORDER &&
             Product::isAvailableWhenOutOfStock($params['product']->out_of_stock)
         ) {
             return '';
         }
+
 
         $context = Context::getContext();
         $idProduct = (int) $params['product']->id;
