@@ -301,41 +301,21 @@ class MailAlert extends \ObjectModel
                 $customerEmail = $customer['customer_email'];
             }
 
-            $mailIso = \Language::getIsoById($idLang);
-
-            $dirMail = false;
-            if (file_exists(_PS_THEME_DIR_."modules/mailalerts/mails/$mailIso/customer_qty.txt") &&
-                file_exists(_PS_THEME_DIR_."modules/mailalerts/mails/$mailIso/customer_qty.html")) {
-                $dirMail = _PS_THEME_DIR_."modules/mailalerts/mails/";
-            } elseif (file_exists(__DIR__."/../mails/$mailIso/customer_qty.txt") &&
-                file_exists(__DIR__."/../mails/$mailIso/customer_qty.html")
-            ) {
-                $dirMail = __DIR__.'/../mails/';
-            } elseif (file_exists(_PS_MAIL_DIR_.$mailIso.'/customer_qty.txt') &&
-                file_exists(_PS_MAIL_DIR_.$mailIso.'/customer_qty.html')) {
-                $dirMail = _PS_MAIL_DIR_;
-            } elseif (\Language::getIdByIso('en')) {
-                $idLang = (int) \Language::getIdByIso('en');
-                $dirMail = __DIR__.'/../mails/';
-            }
-
-            if ($dirMail) {
-                \Mail::Send(
-                    $idLang,
-                    'customer_qty',
-                    \Mail::l('Product available', $idLang),
-                    $templateVars,
-                    (string) $customerEmail,
-                    null,
-                    (string) \Configuration::get('PS_SHOP_EMAIL', null, null, $idShop),
-                    (string) \Configuration::get('PS_SHOP_NAME', null, null, $idShop),
-                    null,
-                    null,
-                    $dirMail,
-                    false,
-                    $idShop
-                );
-            }
+            \Mail::Send(
+                $idLang,
+                'customer_qty',
+                \Mail::l('Product available', $idLang),
+                $templateVars,
+                (string) $customerEmail,
+                null,
+                (string) \Configuration::get('PS_SHOP_EMAIL', null, null, $idShop),
+                (string) \Configuration::get('PS_SHOP_NAME', null, null, $idShop),
+                null,
+                null,
+                __DIR__.'/../mails/',
+                false,
+                $idShop
+            );
 
             \Hook::exec(
                 'actionModuleMailAlertSendCustomer',

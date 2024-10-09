@@ -734,10 +734,6 @@ class MailAlerts extends Module
         $configuration = Configuration::getMultiple(
             [
                 'PS_SHOP_EMAIL',
-                'PS_MAIL_METHOD',
-                'PS_MAIL_SERVER',
-                'PS_MAIL_USER',
-                'PS_MAIL_PASSWD',
                 'PS_SHOP_NAME',
                 'PS_MAIL_COLOR',
             ],
@@ -910,39 +906,21 @@ class MailAlerts extends Module
                 }
             }
 
-            $dirMail = false;
-            if (file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/new_order.txt") &&
-                file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/new_order.html")) {
-                $dirMail = _PS_THEME_DIR_."modules/$this->name/mails/";
-            } elseif (file_exists(__DIR__."/mails/$mailIso/new_order.txt") &&
-                file_exists(__DIR__."/mails/$mailIso/new_order.html")
-            ) {
-                $dirMail = __DIR__.'/mails/';
-            } elseif (file_exists(_PS_MAIL_DIR_.$mailIso.'/new_order.txt') &&
-                file_exists(_PS_MAIL_DIR_.$mailIso.'/new_order.html')) {
-                $dirMail = _PS_MAIL_DIR_;
-            } elseif (Language::getIdByIso('en')) {
-                $mailIdLang = (int) Language::getIdByIso('en');
-                $dirMail = __DIR__.'/mails/';
-            }
-
-            if ($dirMail) {
-                Mail::Send(
-                    $mailIdLang,
-                    'new_order',
-                    sprintf(Mail::l('New order : #%d - %s', $mailIdLang), $order->id, $order->reference),
-                    $templateVars,
-                    $merchantMail,
-                    null,
-                    $configuration['PS_SHOP_EMAIL'],
-                    $configuration['PS_SHOP_NAME'],
-                    null,
-                    null,
-                    $dirMail,
-                    null,
-                    $idShop
-                );
-            }
+            Mail::Send(
+                $mailIdLang,
+                'new_order',
+                sprintf(Mail::l('New order : #%d - %s', $mailIdLang), $order->id, $order->reference),
+                $templateVars,
+                $merchantMail,
+                null,
+                $configuration['PS_SHOP_EMAIL'],
+                $configuration['PS_SHOP_NAME'],
+                null,
+                null,
+                __DIR__ . '/mails/',
+                null,
+                $idShop
+            );
         }
     }
 
@@ -1066,27 +1044,12 @@ class MailAlerts extends Module
                 '{reference}' => $product->reference,
             ];
 
-            $dirMail = false;
-            if (file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/productoutofstock.txt") &&
-                file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/productoutofstock.html")) {
-                $dirMail = _PS_THEME_DIR_."modules/$this->name/mails/";
-            } elseif (file_exists(__DIR__."/mails/$mailIso/productoutofstock.txt") &&
-                file_exists(__DIR__."/mails/$mailIso/productoutofstock.html")
-            ) {
-                $dirMail = __DIR__.'/mails/';
-            } elseif (file_exists(_PS_MAIL_DIR_.$mailIso.'/productoutofstock.txt') &&
-                file_exists(_PS_MAIL_DIR_.$mailIso.'/productoutofstock.html')
-            ) {
-                $dirMail = _PS_MAIL_DIR_;
-            } elseif (Language::getIdByIso('en')) {
-                $dirMail = __DIR__."/mails/";
-                $idLang = (int) Language::getIdByIso('en');
-            }
 
             // Do not send mail if multiples product are created / imported.
-            if (!defined('PS_MASS_PRODUCT_CREATION') && $dirMail) {
+            if (!defined('PS_MASS_PRODUCT_CREATION')) {
                 // Send 1 email by merchant mail, because Mail::Send doesn't work with an array of recipients
                 foreach ($this->merchant_mails as $merchantMail) {
+
                     Mail::Send(
                         $idLang,
                         'productoutofstock',
@@ -1098,7 +1061,7 @@ class MailAlerts extends Module
                         (string) $configuration['PS_SHOP_NAME'],
                         null,
                         null,
-                        $dirMail,
+                        __DIR__ . '/mails/',
                         false,
                         $idShop
                     );
@@ -1238,42 +1201,23 @@ class MailAlerts extends Module
                 '{product}'          => pSQL($productName),
             ];
 
-            $dirMail = false;
-            if (file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/productcoverage.txt") &&
-                file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/productcoverage.html")) {
-                $dirMail = _PS_THEME_DIR_."modules/$this->name/mails/";
-            } elseif (file_exists(__DIR__."/mails/$mailIso/productcoverage.txt") &&
-                file_exists(__DIR__."/mails/$mailIso/productcoverage.html")
-            ) {
-                $dirMail = __DIR__.'/mails/';
-            } elseif (file_exists(_PS_MAIL_DIR_.$mailIso.'/productcoverage.txt') &&
-                file_exists(_PS_MAIL_DIR_.$mailIso.'/productcoverage.html')
-            ) {
-                $dirMail = _PS_MAIL_DIR_;
-            } elseif (Language::getIdByIso('en')) {
-                $idLang = (int) Language::getIdByIso('en');
-                $dirMail = __DIR__.'/mails/';
-            }
-
-            if ($dirMail) {
-                // Send 1 email by merchant mail, because Mail::Send doesn't work with an array of recipients
-                foreach ($this->merchant_mails as $merchantMail) {
-                    Mail::Send(
-                        $idLang,
-                        'productcoverage',
-                        Mail::l('Stock coverage', $idLang),
-                        $templateVars,
-                        $merchantMail,
-                        null,
-                        (string) Configuration::get('PS_SHOP_EMAIL'),
-                        (string) Configuration::get('PS_SHOP_NAME'),
-                        null,
-                        null,
-                        $dirMail,
-                        null,
-                        $idShop
-                    );
-                }
+            // Send 1 email by merchant mail, because Mail::Send doesn't work with an array of recipients
+            foreach ($this->merchant_mails as $merchantMail) {
+                Mail::Send(
+                    $idLang,
+                    'productcoverage',
+                    Mail::l('Stock coverage', $idLang),
+                    $templateVars,
+                    $merchantMail,
+                    null,
+                    (string) Configuration::get('PS_SHOP_EMAIL'),
+                    (string) Configuration::get('PS_SHOP_NAME'),
+                    null,
+                    null,
+                    __DIR__ . '/mails/',
+                    null,
+                    $idShop
+                );
             }
         }
     }
@@ -1311,10 +1255,6 @@ class MailAlerts extends Module
         $configuration = Configuration::getMultiple(
             [
                 'PS_SHOP_EMAIL',
-                'PS_MAIL_METHOD',
-                'PS_MAIL_SERVER',
-                'PS_MAIL_USER',
-                'PS_MAIL_PASSWD',
                 'PS_SHOP_NAME',
                 'PS_MAIL_COLOR',
             ],
@@ -1422,40 +1362,21 @@ class MailAlerts extends Module
                 }
             }
 
-            $dirMail = false;
-            if (file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/return_slip.txt") &&
-                file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/return_slip.html")) {
-                $dirMail = _PS_THEME_DIR_."modules/$this->name/mails/";
-            } elseif (file_exists(__DIR__."/mails/$mailIso/return_slip.txt") &&
-                file_exists(__DIR__."/mails/$mailIso/return_slip.html")
-            ) {
-                $dirMail = __DIR__.'/mails/';
-            } elseif (file_exists(_PS_MAIL_DIR_.$mailIso.'/return_slip.txt') &&
-                file_exists(_PS_MAIL_DIR_.$mailIso.'/return_slip.html')
-            ) {
-                $dirMail = _PS_MAIL_DIR_;
-            } elseif (Language::getIdByIso('en')) {
-                $mailIdLang = (int) Language::getIdByIso('en');
-                $dirMail = __DIR__.'/mails/';
-            }
-
-            if ($dirMail) {
-                Mail::Send(
-                    $mailIdLang,
-                    'return_slip',
-                    sprintf(Mail::l('New return from order #%d - %s', $mailIdLang), $order->id, $order->reference),
-                    $templateVars,
-                    $merchantMail,
-                    null,
-                    $configuration['PS_SHOP_EMAIL'],
-                    $configuration['PS_SHOP_NAME'],
-                    null,
-                    null,
-                    $dirMail,
-                    null,
-                    $idShop
-                );
-            }
+            Mail::Send(
+                $mailIdLang,
+                'return_slip',
+                sprintf(Mail::l('New return from order #%d - %s', $mailIdLang), $order->id, $order->reference),
+                $templateVars,
+                $merchantMail,
+                null,
+                $configuration['PS_SHOP_EMAIL'],
+                $configuration['PS_SHOP_NAME'],
+                null,
+                null,
+                __DIR__ . '/mails/',
+                null,
+                $idShop
+            );
         }
     }
 
@@ -1488,23 +1409,6 @@ class MailAlerts extends Module
             $mailIso = Context::getContext()->language->iso_code;
         }
 
-        $dirMail = false;
-        if (file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/order_changed.txt") &&
-            file_exists(_PS_THEME_DIR_."modules/$this->name/mails/$mailIso/order_changed.html")) {
-            $dirMail = _PS_THEME_DIR_."modules/$this->name/mails/";
-        } elseif (file_exists(__DIR__."/mails/$mailIso/order_changed.txt") &&
-            file_exists(__DIR__."/mails/$mailIso/order_changed.html")
-        ) {
-            $dirMail = __DIR__.'/mails/';
-        } elseif (file_exists(_PS_MAIL_DIR_.$mailIso.'/order_changed.txt') &&
-            file_exists(_PS_MAIL_DIR_.$mailIso.'/order_changed.html')
-        ) {
-            $dirMail = _PS_MAIL_DIR_;
-        } elseif (Language::getIdByIso('en')) {
-            $mailIso = 'en';
-            $dirMail = __DIR__.'/mails/';
-        }
-
         Mail::Send(
             Language::getIdByIso($mailIso),
             'order_changed',
@@ -1516,7 +1420,7 @@ class MailAlerts extends Module
             null,
             null,
             null,
-            $dirMail,
+            __DIR__ . '/mails/',
             true,
             (int) $order->id_shop
         );
