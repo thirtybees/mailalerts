@@ -249,19 +249,16 @@ class MailAlert extends ObjectModel
 			AND (ma.`id_customer` = '.(int) $customer->id.' OR ma.`customer_email` = \''.pSQL($customer->email).'\')
 			AND pl.`id_lang` = '.(int) $idLang. Shop::addSqlRestriction(false, 'ma');
 
-        $ret = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-        if (is_array($ret)) {
-            return $ret;
-        }
-        return [];
+        $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        return is_array($result) ? $result : [];
     }
 
     /**
      * @param int $idProductAttribute
      * @param int $idLang
      *
-     * @return array|false|null|\PDOStatement
-     * @throws \PrestaShopDatabaseException
+     * @return array
+     *
      * @throws PrestaShopException
      */
     public static function getProductAttributeCombination($idProductAttribute, $idLang)
@@ -277,7 +274,8 @@ class MailAlert extends ObjectModel
 			'. Shop::addSqlAssociation('product_attribute', 'pa').'
 			WHERE pac.`id_product_attribute` = '.(int) $idProductAttribute;
 
-        return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        return is_array($result) ? $result : [];
     }
 
     /**
@@ -352,8 +350,8 @@ class MailAlert extends ObjectModel
      * @param int $idProduct
      * @param int $idProductAttribute
      *
-     * @return array|false|null|\PDOStatement
-     * @throws \PrestaShopDatabaseException
+     * @return array
+     *
      * @throws PrestaShopException
      */
     public static function getCustomers($idProduct, $idProductAttribute)
@@ -363,7 +361,8 @@ class MailAlert extends ObjectModel
 			FROM `'._DB_PREFIX_.static::$definition['table'].'`
 			WHERE `id_product` = '.(int) $idProduct.' AND `id_product_attribute` = '.(int) $idProductAttribute;
 
-        return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        return is_array($result) ? $result : [];
     }
 
     /**
