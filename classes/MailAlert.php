@@ -20,11 +20,27 @@
  *
  * @author    PrestaShop SA <contact@prestashop.com>
  * @copyright 2007-2016 PrestaShop SA
+ * @copyright 2017-2024 thirty bees
  * @license   https://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  * International Registered Trademark & Property of PrestaShop SA
  */
 
 namespace MailAlertModule;
+
+use Address;
+use AddressFormat;
+use Configuration;
+use Context;
+use Customer;
+use Db;
+use Hook;
+use Language;
+use Mail;
+use ObjectModel;
+use PrestaShopException;
+use Product;
+use Shop;
+use Validate;
 
 if (!defined('_TB_VERSION_')) {
     exit;
@@ -33,7 +49,7 @@ if (!defined('_TB_VERSION_')) {
 /**
  * Class MailAlert
  */
-class MailAlert extends \ObjectModel
+class MailAlert extends ObjectModel
 {
     /**
      * @see ObjectModel::$definition
@@ -95,7 +111,8 @@ class MailAlert extends \ObjectModel
      * @param string $guestEmail
      *
      * @return boolean
-     * @throws \PrestaShopException
+     *
+     * @throws PrestaShopException
      */
     public static function customerHasNotification($idCustomer, $idProduct, $idProductAttribute, $idShop = null, $guestEmail = '')
     {
@@ -105,10 +122,10 @@ class MailAlert extends \ObjectModel
         $idShop = (int)$idShop;
 
         if (!$idShop) {
-            $idShop = (int)\Context::getContext()->shop->id;
+            $idShop = (int)Context::getContext()->shop->id;
         }
 
-        $customer = new \Customer($idCustomer);
+        $customer = new Customer($idCustomer);
         $customerEmail = $customer->email;
         $guestEmail = pSQL($guestEmail);
         $customerEmail = pSQL($customerEmail);
@@ -125,21 +142,21 @@ class MailAlert extends \ObjectModel
 			AND `id_product_attribute` = '.$idProductAttribute.'
 			AND `id_shop` = '.$idShop;
 
-        return (bool)\Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+        return (bool)Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
     }
 
     /**
      * @param int $idCustomer
      * @param int $idLang
-     * @param \Shop|null $shop
+     * @param Shop|null $shop
      *
      * @return array
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     *
+     * @throws PrestaShopException
      */
-    public static function getMailAlerts($idCustomer, $idLang, \Shop $shop = null)
+    public static function getMailAlerts($idCustomer, $idLang, Shop $shop = null)
     {
-        if (!\Validate::isUnsignedId($idCustomer) || !\Validate::isUnsignedId($idLang)) {
+        if (!Validate::isUnsignedId($idCustomer) || !Validate::isUnsignedId($idLang)) {
             return [];
         }
 
@@ -147,18 +164,18 @@ class MailAlert extends \ObjectModel
         $idLang = (int)$idLang;
 
         if (!$shop) {
-            $shop = \Context::getContext()->shop;
+            $shop = Context::getContext()->shop;
         }
 
-        $customer = new \Customer($idCustomer);
+        $customer = new Customer($idCustomer);
 
         $products = [];
         foreach (static::getProducts($customer, $idLang) as $product) {
             $productId = (int)$product['id_product'];
             $productAttributeId = (int)$product['id_product_attribute'];
 
-            $obj = new \Product($productId, false, $idLang);
-            if (! \Validate::isLoadedObject($obj)) {
+            $obj = new Product($productId, false, $idLang);
+            if (! Validate::isLoadedObject($obj)) {
                 continue;
             }
 
@@ -178,7 +195,7 @@ class MailAlert extends \ObjectModel
                 $attrgrps = $obj->getAttributesGroups((int) $idLang);
                 foreach ($attrgrps as $attrgrp) {
                     if ($attrgrp['id_product_attribute'] == (int) $product['id_product_attribute']
-                        && $images = \Product::_getAttributeImageAssociations((int) $attrgrp['id_product_attribute'])
+                        && $images = Product::_getAttributeImageAssociations((int) $attrgrp['id_product_attribute'])
                     ) {
                         $product['cover'] = $obj->id.'-'.array_pop($images);
                         break;
@@ -197,7 +214,7 @@ class MailAlert extends \ObjectModel
             }
 
             if (!isset($product['cover'])) {
-                $product['cover'] = \Language::getIsoById($idLang).'-default';
+                $product['cover'] = Language::getIsoById($idLang).'-default';
             }
 
             $product['id_shop'] = $shop->id;
@@ -211,28 +228,28 @@ class MailAlert extends \ObjectModel
     }
 
     /**
-     * @param \Customer $customer
+     * @param Customer $customer
      * @param int $idLang
      *
      * @return array
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     *
+     * @throws PrestaShopException
      */
     public static function getProducts($customer, $idLang)
     {
-        $listShopIds = \Shop::getContextListShopID(false);
+        $listShopIds = Shop::getContextListShopID(false);
 
         $sql = '
 			SELECT ma.`id_product`, p.`quantity` AS product_quantity, pl.`name`, ma.`id_product_attribute`
 			FROM `'._DB_PREFIX_.static::$definition['table'].'` ma
 			JOIN `'._DB_PREFIX_.'product` p ON (p.`id_product` = ma.`id_product`)
-			'.\Shop::addSqlAssociation('product', 'p').'
+			'. Shop::addSqlAssociation('product', 'p').'
 			LEFT JOIN `'._DB_PREFIX_.'product_lang` pl ON (pl.`id_product` = p.`id_product` AND pl.id_shop IN ('.implode(', ', $listShopIds).'))
 			WHERE product_shop.`active` = 1
 			AND (ma.`id_customer` = '.(int) $customer->id.' OR ma.`customer_email` = \''.pSQL($customer->email).'\')
-			AND pl.`id_lang` = '.(int) $idLang.\Shop::addSqlRestriction(false, 'ma');
+			AND pl.`id_lang` = '.(int) $idLang. Shop::addSqlRestriction(false, 'ma');
 
-        $ret = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        $ret = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
         if (is_array($ret)) {
             return $ret;
         }
@@ -245,7 +262,7 @@ class MailAlert extends \ObjectModel
      *
      * @return array|false|null|\PDOStatement
      * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @throws PrestaShopException
      */
     public static function getProductAttributeCombination($idProductAttribute, $idLang)
     {
@@ -257,22 +274,22 @@ class MailAlert extends \ObjectModel
 			LEFT JOIN `'._DB_PREFIX_.'attribute_lang` al ON (a.`id_attribute` = al.`id_attribute` AND al.`id_lang` = '.(int) $idLang.')
 			LEFT JOIN `'._DB_PREFIX_.'attribute_group_lang` agl ON (ag.`id_attribute_group` = agl.`id_attribute_group` AND agl.`id_lang` = '.(int) $idLang.')
 			LEFT JOIN `'._DB_PREFIX_.'product_attribute` pa ON (pac.`id_product_attribute` = pa.`id_product_attribute`)
-			'.\Shop::addSqlAssociation('product_attribute', 'pa').'
+			'. Shop::addSqlAssociation('product_attribute', 'pa').'
 			WHERE pac.`id_product_attribute` = '.(int) $idProductAttribute;
 
-        return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
     }
 
     /**
      * @param int $idProduct
      * @param int $idProductAttribute
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     *
+     * @throws PrestaShopException
      */
     public static function sendCustomerAlert($idProduct, $idProductAttribute)
     {
-        $link = new \Link();
-        $context = \Context::getContext()->cloneContext();
+        $link = Context::getContext()->link;
+        $context = Context::getContext()->cloneContext();
         $customers = static::getCustomers($idProduct, $idProductAttribute);
 
         foreach ($customers as $customer) {
@@ -281,9 +298,9 @@ class MailAlert extends \ObjectModel
             $context->shop->id = $idShop;
             $context->language->id = $idLang;
 
-            $product = new \Product((int) $idProduct, false, $idLang, $idShop);
+            $product = new Product((int) $idProduct, false, $idLang, $idShop);
             $productLink = $link->getProductLink($product, $product->link_rewrite, null, null, $idLang, $idShop);
-            $imageCover = \Product::getCover((int)$idProduct);
+            $imageCover = Product::getCover((int)$idProduct);
             $imageCoverId = isset($imageCover['id_image']) ? (int)$imageCover['id_image'] : 0;
             $imageLinkCover = $imageCoverId ? $link->getImageLink($product->link_rewrite, $imageCoverId, 'home') : '';
             $templateVars = [
@@ -293,7 +310,7 @@ class MailAlert extends \ObjectModel
             ];
 
             if ($customer['id_customer']) {
-                $customer = new \Customer((int) $customer['id_customer']);
+                $customer = new Customer((int) $customer['id_customer']);
                 $customerEmail = $customer->email;
                 $customerId = (int) $customer->id;
             } else {
@@ -301,15 +318,15 @@ class MailAlert extends \ObjectModel
                 $customerEmail = $customer['customer_email'];
             }
 
-            \Mail::Send(
+            Mail::Send(
                 $idLang,
                 'customer_qty',
-                \Mail::l('Product available', $idLang),
+                Mail::l('Product available', $idLang),
                 $templateVars,
                 (string) $customerEmail,
                 null,
-                (string) \Configuration::get('PS_SHOP_EMAIL', null, null, $idShop),
-                (string) \Configuration::get('PS_SHOP_NAME', null, null, $idShop),
+                (string) Configuration::get('PS_SHOP_EMAIL', null, null, $idShop),
+                (string) Configuration::get('PS_SHOP_NAME', null, null, $idShop),
                 null,
                 null,
                 __DIR__.'/../mails/',
@@ -317,7 +334,7 @@ class MailAlert extends \ObjectModel
                 $idShop
             );
 
-            \Hook::exec(
+            Hook::exec(
                 'actionModuleMailAlertSendCustomer',
                 [
                     'product'     => (is_array($product->name) ? $product->name[$idLang] : $product->name),
@@ -337,7 +354,7 @@ class MailAlert extends \ObjectModel
      *
      * @return array|false|null|\PDOStatement
      * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @throws PrestaShopException
      */
     public static function getCustomers($idProduct, $idProductAttribute)
     {
@@ -346,7 +363,7 @@ class MailAlert extends \ObjectModel
 			FROM `'._DB_PREFIX_.static::$definition['table'].'`
 			WHERE `id_product` = '.(int) $idProduct.' AND `id_product_attribute` = '.(int) $idProductAttribute;
 
-        return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
     }
 
     /**
@@ -357,7 +374,7 @@ class MailAlert extends \ObjectModel
      * @param int|null $idShop
      *
      * @return bool
-     * @throws \PrestaShopException
+     * @throws PrestaShopException
      */
     public static function deleteAlert($idCustomer, $customerEmail, $idProduct, $idProductAttribute, $idShop = null)
     {
@@ -367,21 +384,21 @@ class MailAlert extends \ObjectModel
                 '`customer_email` = \''.pSQL($customerEmail).'\'').
             ' AND `id_product` = '.(int) $idProduct.'
 			AND `id_product_attribute` = '.(int) $idProductAttribute.'
-			AND `id_shop` = '.($idShop != null ? (int) $idShop : (int) \Context::getContext()->shop->id);
+			AND `id_shop` = '.($idShop != null ? (int) $idShop : (int) Context::getContext()->shop->id);
 
-        return \Db::getInstance()->execute($sql);
+        return Db::getInstance()->execute($sql);
     }
 
     /**
-     * @param \Address $address
+     * @param Address $address
      * @param string $lineSep
      * @param array $fieldsStyle
      *
      * @return string
-     * @throws \PrestaShopException
+     * @throws PrestaShopException
      */
-    public static function getFormattedAddress(\Address $address, $lineSep, $fieldsStyle = [])
+    public static function getFormattedAddress(Address $address, $lineSep, $fieldsStyle = [])
     {
-        return \AddressFormat::generateAddress($address, ['avoid' => []], $lineSep, ' ', $fieldsStyle);
+        return AddressFormat::generateAddress($address, ['avoid' => []], $lineSep, ' ', $fieldsStyle);
     }
 }
