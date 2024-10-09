@@ -882,30 +882,8 @@ class MailAlerts extends Module
             '{message}'              => $message,
         ];
 
-        // Shop iso
-        $iso = Language::getIsoById((int) Configuration::get('PS_LANG_DEFAULT'));
-
-        // Send 1 email by merchant mail, because Mail::Send doesn't work with an array of recipients
         foreach ($this->merchant_mails as $merchantMail) {
-            // Default language
-            $mailIdLang = $idLang;
-            $mailIso = $iso;
-
-            // Use the merchant lang if he exists as an employee
-            $results = Db::getInstance()->executeS(
-                '
-				SELECT `id_lang` FROM `'._DB_PREFIX_.'employee`
-				WHERE `email` = \''.pSQL($merchantMail).'\'
-			'
-            );
-            if ($results) {
-                $userIso = Language::getIsoById((int) $results[0]['id_lang']);
-                if ($userIso) {
-                    $mailIdLang = (int) $results[0]['id_lang'];
-                    $mailIso = $userIso;
-                }
-            }
-
+            $mailIdLang = $this->getMerchantMailLanguageId($merchantMail);
             Mail::Send(
                 $mailIdLang,
                 'new_order',
@@ -1035,7 +1013,6 @@ class MailAlerts extends Module
             !(!$this->merchant_oos || empty($this->merchant_mails)) &&
             $configuration['PS_STOCK_MANAGEMENT']
         ) {
-            $mailIso = Language::getIsoById($idLang);
             $productName = Product::getProductName($idProduct, $idProductAttribute, $idLang);
             $templateVars = [
                 '{qty}'       => $quantity,
@@ -1047,13 +1024,12 @@ class MailAlerts extends Module
 
             // Do not send mail if multiples product are created / imported.
             if (!defined('PS_MASS_PRODUCT_CREATION')) {
-                // Send 1 email by merchant mail, because Mail::Send doesn't work with an array of recipients
                 foreach ($this->merchant_mails as $merchantMail) {
-
+                    $mailIdLang = $this->getMerchantMailLanguageId($merchantMail);
                     Mail::Send(
-                        $idLang,
+                        $mailIdLang,
                         'productoutofstock',
-                        Mail::l('Product out of stock', $idLang),
+                        Mail::l('Product out of stock', $mailIdLang),
                         $templateVars,
                         $merchantMail,
                         null,
@@ -1193,7 +1169,6 @@ class MailAlerts extends Module
             $context = Context::getContext();
             $idLang = (int) $context->language->id;
             $idShop = (int) $context->shop->id;
-            $mailIso = Language::getIsoById($idLang);
             $productName = Product::getProductName($idProduct, $idProductAttribute, $idLang);
             $templateVars = [
                 '{current_coverage}' => $coverage,
@@ -1201,12 +1176,12 @@ class MailAlerts extends Module
                 '{product}'          => pSQL($productName),
             ];
 
-            // Send 1 email by merchant mail, because Mail::Send doesn't work with an array of recipients
             foreach ($this->merchant_mails as $merchantMail) {
+                $mailIdLang = $this->getMerchantMailLanguageId($merchantMail);
                 Mail::Send(
-                    $idLang,
+                    $mailIdLang,
                     'productcoverage',
-                    Mail::l('Stock coverage', $idLang),
+                    Mail::l('Stock coverage', $mailIdLang),
                     $templateVars,
                     $merchantMail,
                     null,
@@ -1262,9 +1237,6 @@ class MailAlerts extends Module
             null,
             $idShop
         );
-
-        // Shop iso
-        $iso = Language::getIsoById((int) Configuration::get('PS_LANG_DEFAULT'));
 
         $order = new Order((int) $params['orderReturn']->id_order);
         $customer = new Customer((int) $params['orderReturn']->id_customer);
@@ -1341,27 +1313,8 @@ class MailAlerts extends Module
             '{message}'              => Tools::purifyHTML($params['orderReturn']->question),
         ];
 
-        // Send 1 email by merchant mail, because Mail::Send doesn't work with an array of recipients
         foreach ($this->merchant_mails as $merchantMail) {
-            // Default language
-            $mailIdLang = $idLang;
-            $mailIso = $iso;
-
-            // Use the merchant lang if he exists as an employee
-            $results = Db::getInstance()->executeS(
-                '
-				SELECT `id_lang` FROM `'._DB_PREFIX_.'employee`
-				WHERE `email` = \''.pSQL($merchantMail).'\'
-			'
-            );
-            if ($results) {
-                $userIso = Language::getIsoById((int) $results[0]['id_lang']);
-                if ($userIso) {
-                    $mailIdLang = (int) $results[0]['id_lang'];
-                    $mailIso = $userIso;
-                }
-            }
-
+            $mailIdLang = $this->getMerchantMailLanguageId($merchantMail);
             Mail::Send(
                 $mailIdLang,
                 'return_slip',
@@ -1403,16 +1356,15 @@ class MailAlerts extends Module
         ];
 
         $language = new Language((int) $order->id_lang);
-        if (Validate::isLoadedObject($language)) {
-            $mailIso = $language->iso_code;
-        } else {
-            $mailIso = Context::getContext()->language->iso_code;
+        if (! Validate::isLoadedObject($language)) {
+            $language = Context::getContext()->language;
         }
+        $languageId = (int)$language->id;
 
         Mail::Send(
-            Language::getIdByIso($mailIso),
+            $languageId,
             'order_changed',
-            Mail::l('Your order has been changed', (int) $order->id_lang),
+            Mail::l('Your order has been changed', $languageId),
             $data,
             $order->getCustomer()->email,
             $order->getCustomer()->firstname.' '.$order->getCustomer()->lastname,
@@ -1582,5 +1534,31 @@ class MailAlerts extends Module
         $emails = array_filter($emails, [Validate::class, 'isEmail']);
         $emails = array_unique($emails);
         return $emails;
+    }
+
+    /**
+     * Detect email language that should be used for merchant notification emails.
+     *
+     * If employee with the same email address exists, employee preferred
+     * language will be used. Otherwise, email will be sent in shop default
+     * language
+     *
+     * @param string $merchantMail
+     * @return int
+     *
+     * @throws PrestaShopException
+     */
+    public function getMerchantMailLanguageId(string $merchantMail): int
+    {
+        // Use the merchant lang if he exists as an employee
+        $langId = (int)Db::getInstance()->getValue((new DbQuery())
+            ->select('id_lang')
+            ->from('employee')
+            ->where('email = "'.pSQL($merchantMail) . '"')
+        );
+        if ($langId) {
+            return $langId;
+        }
+        return (int)Configuration::get('PS_LANG_DEFAULT');
     }
 }
