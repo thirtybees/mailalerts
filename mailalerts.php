@@ -230,9 +230,25 @@ class MailAlerts extends Module
      */
     public function getContent()
     {
-        $html = $this->postProcess();
+        if (Tools::isSubmit('delete' . $this->name)) {
+            $subscriberId = (int)Tools::getValue('id_mailalert_customer_oos');
+            $productId = (int)Tools::getValue('id_product');
 
+            if ($subscriberId) {
+                Db::getInstance()->delete('mailalert_customer_oos', 'id_mailalert_customer_oos = ' . $subscriberId);
+                $this->context->controller->confirmations[] = $this->l('The notification has been successfully deleted.');
+
+                Tools::redirectAdmin(Context::getContext()->link->getAdminLink('AdminModules', true, [
+                    'configure' => 'mailalerts',
+                    'module_name' => 'mailalerts',
+                    'id_product' => $productId,
+                ]) . '#subscribers');
+            }
+        }
+
+        $html = $this->postProcess();
         $html .= $this->renderForm();
+
         if ($this->customer_qty) {
             $html .= "<a id='subscribers'></a>";
             $html .= $this->renderList();
@@ -568,7 +584,8 @@ class MailAlerts extends Module
             $helper->shopLinkType = '';
             $helper->simple_header = true;
             $helper->identifier = 'id_mailalert_customer_oos';
-            $helper->actions = [];
+            $helper->actions = ['delete'];
+            $helper->no_link = true;
             $helper->show_toolbar = false;
             $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
                 'configure' => 'mailalerts',
@@ -599,6 +616,10 @@ class MailAlerts extends Module
                     'callback_object' => $this,
                     'callback' => 'renderProduct'
                 ],
+                'combination_name' => [
+                    'title' => $this->l('Combination'),
+                    'type' => 'text',
+                ],
                 'cnt' => [
                     'title' => $this->l('Number of subscribers'),
                     'type' => 'text',
@@ -612,6 +633,7 @@ class MailAlerts extends Module
             $helper->simple_header = true;
             $helper->identifier = 'id_product';
             $helper->actions = [];
+            $helper->no_link = true;
             $helper->show_toolbar = false;
             $helper->title = $this->l('Products with notifications');
             $helper->table = $this->name;
@@ -635,18 +657,24 @@ class MailAlerts extends Module
     {
         $langId = (int)Context::getContext()->language->id;
         $conn = Db::getInstance();
+
         $sql = (new DbQuery())
             ->select('oos.id_product')
             ->select('NULLIF(p.reference, "") AS reference')
             ->select('NULLIF(pl.name, "") AS product_name')
-            ->select('COUNT(1) as cnt')
+            ->select('COUNT(DISTINCT oos.id_mailalert_customer_oos) as cnt')
+            ->select('IF(oos.id_product_attribute > 0, GROUP_CONCAT(DISTINCT al.name ORDER BY agl.id_attribute_group SEPARATOR ", "), "") AS combination_name')
             ->from('mailalert_customer_oos', 'oos')
             ->leftJoin('product_lang', 'pl', 'pl.id_lang = '.$langId.' AND pl.id_product = oos.id_product AND pl.id_shop = oos.id_shop')
             ->leftJoin('product', 'p', 'p.id_product = oos.id_product')
+            ->leftJoin('product_attribute_combination', 'pac', 'pac.id_product_attribute = oos.id_product_attribute')
+            ->leftJoin('attribute', 'a', 'a.id_attribute = pac.id_attribute')
+            ->leftJoin('attribute_lang', 'al', 'al.id_attribute = a.id_attribute AND al.id_lang = '.$langId)
+            ->leftJoin('attribute_group_lang', 'agl', 'agl.id_attribute_group = a.id_attribute_group AND agl.id_lang = '.$langId)
             ->where('1' . Shop::addSqlRestriction(false, 'oos'))
-            ->orderBy('COUNT(1) DESC')
             ->groupBy('oos.id_product')
-            ->groupBy('pl.name');
+            ->orderBy('COUNT(DISTINCT oos.id_mailalert_customer_oos) DESC');
+
         return $conn->executeS($sql);
     }
 
@@ -690,7 +718,6 @@ class MailAlerts extends Module
             ->orderBy('oos.date_add');
         return $conn->executeS($sql);
     }
-
 
     /**
      * Configuration field values
@@ -1560,5 +1587,28 @@ class MailAlerts extends Module
             return $langId;
         }
         return (int)Configuration::get('PS_LANG_DEFAULT');
+    }
+
+    /**
+     * @param string $value
+     * @param array $row
+     *
+     * @return string
+     *
+     * @throws PrestaShopException
+     */
+    public function renderDeleteButton($value, $row)
+    {
+        $productId = (int)$row['id_product'];
+        $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
+            'configure' => 'mailalerts',
+            'delete_mailalert' => 1,
+            'id_product' => $productId,
+        ]);
+
+        return '<a href="'.$url.'" style="color: red; text-decoration: underline;"
+                    onclick="return confirm(\''.$this->l('Are you sure you want to delete this notification?').'\')">
+                    '.$this->l('Delete').'
+                </a>';
     }
 }
