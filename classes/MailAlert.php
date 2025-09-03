@@ -36,10 +36,12 @@ use Db;
 use Hook;
 use Language;
 use Mail;
+use MailAlerts;
 use ObjectModel;
 use PrestaShopException;
 use Product;
 use Shop;
+use Tools;
 use Validate;
 
 if (!defined('_TB_VERSION_')) {
@@ -64,6 +66,9 @@ class MailAlert extends ObjectModel
             'id_product_attribute' => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
             'id_shop'              => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
             'id_lang'              => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
+            'ip_hash'              => ['type' => self::TYPE_STRING, 'validate' => 'isAnything'],
+            'ip_mask'              => ['type' => self::TYPE_STRING, 'validate' => 'isAnything'],
+            'user_agent'           => ['type' => self::TYPE_STRING, 'validate' => 'isAnything'],
             'date_add'             => ['type' => self::TYPE_DATE,   'validate' => 'isDate'],
         ],
     ];
@@ -102,6 +107,108 @@ class MailAlert extends ObjectModel
      * @var string
      */
     public $date_add;
+
+    /**
+     * @var string
+     */
+    public $ip_hash;
+
+    /**
+     * @var string
+     */
+    public $ip_mask;
+
+    /**
+     * @var string
+     */
+    public $user_agent;
+
+    /**
+     * Override add to store IP and user agent
+     *
+     * @param bool $autoDate
+     * @param bool $nullValues
+     * @return bool
+     * @throws PrestaShopException
+     */
+    public function add($autoDate = true, $nullValues = false)
+    {
+        self::pruneExpired();
+
+        $ua = isset($_SERVER['HTTP_USER_AGENT']) ? Tools::substr($_SERVER['HTTP_USER_AGENT'], 0, 255) : null;
+
+        $data = [
+            'id_customer' => (int) $this->id_customer,
+            'customer_email' => pSQL($this->customer_email),
+            'id_product' => (int) $this->id_product,
+            'id_product_attribute' => (int) $this->id_product_attribute,
+            'id_shop' => (int) $this->id_shop,
+            'id_lang' => (int) $this->id_lang,
+            'date_add' => ['type' => 'sql', 'value' => 'NOW()'],
+        ];
+
+        if (self::hasColumn('ip_hash') && self::hasColumn('ip_mask')) {
+            $ipStr  = Tools::getRemoteAddr();
+            $ipBin  = MailAlerts::ipToBin($ipStr);
+            $ipHash = MailAlerts::hashIpBinary($ipBin);
+            $ipMask = MailAlerts::maskIpBinary($ipBin);
+
+            if ($ipHash) {
+                $data['ip_hash'] = ['type' => 'sql', 'value' => '0x' . bin2hex($ipHash)];
+            }
+            if ($ipMask) {
+                $data['ip_mask'] = ['type' => 'sql', 'value' => '0x' . bin2hex($ipMask)];
+            }
+        }
+
+        if ($ua && self::hasColumn('user_agent')) {
+            $data['user_agent'] = pSQL($ua);
+        }
+
+        $res = Db::getInstance()->insert(static::$definition['table'], $data);
+        if ($res) {
+            $this->id = Db::getInstance()->Insert_ID();
+        }
+
+        return $res;
+    }
+
+    /**
+     * Check if subscription table has a column
+     *
+     * @param string $column
+     *
+     * @return bool
+     */
+    public static function hasColumn($column)
+    {
+        static $columns = null;
+        if ($columns === null) {
+            $rows = Db::getInstance()->executeS('SHOW COLUMNS FROM `'._DB_PREFIX_.static::$definition['table'].'`');
+            $columns = [];
+            if (is_array($rows)) {
+                foreach ($rows as $row) {
+                    $columns[$row['Field']] = true;
+                }
+            }
+        }
+
+        return isset($columns[$column]);
+    }
+
+    /**
+     * Remove expired notification requests
+     */
+    public static function pruneExpired()
+    {
+        $days = (int) Configuration::get('MAILALERTS_OOS_RETENTION_DAYS');
+        if ($days > 0) {
+            Db::getInstance()->delete(
+                static::$definition['table'],
+                'date_add < DATE_SUB(NOW(), INTERVAL ' . (int) $days . ' DAY)'
+            );
+        }
+    }
 
     /**
      * @param int $idCustomer
@@ -284,11 +391,11 @@ class MailAlert extends ObjectModel
      *
      * @throws PrestaShopException
      */
-    public static function sendCustomerAlert($idProduct, $idProductAttribute)
+    public static function sendCustomerAlert($idProduct, $idProductAttribute, $idShop = null)
     {
         $link = Context::getContext()->link;
         $context = Context::getContext()->cloneContext();
-        $customers = static::getCustomers($idProduct, $idProductAttribute);
+        $customers = static::getCustomers($idProduct, $idProductAttribute, $idShop);
 
         foreach ($customers as $customer) {
             $idShop = (int) $customer['id_shop'];
@@ -354,12 +461,29 @@ class MailAlert extends ObjectModel
      *
      * @throws PrestaShopException
      */
-    public static function getCustomers($idProduct, $idProductAttribute)
+    public static function getCustomers($idProduct, $idProductAttribute, $idShop = null)
     {
+        $ctx = Context::getContext();
+        $idShop = $idShop !== null ? (int) $idShop : (int) $ctx->shop->id;
+
+        $shopIds = [$idShop];
+        if (self::hasColumn('id_shop')) {
+            $idGroup = (int) $ctx->shop->id_shop_group;
+            $group = new \ShopGroup($idGroup);
+            if (!empty($group->share_stock)) {
+                $shops = \Shop::getShops(true, $idGroup);
+                $shopIds = array_map(static function ($s) { return (int) $s['id_shop']; }, (array) $shops);
+            }
+        }
+
+        $in = implode(',', array_map('intval', $shopIds));
+
         $sql = '
-			SELECT id_customer, customer_email, id_shop, id_lang
-			FROM `'._DB_PREFIX_.static::$definition['table'].'`
-			WHERE `id_product` = '.(int) $idProduct.' AND `id_product_attribute` = '.(int) $idProductAttribute;
+        SELECT id_customer, customer_email, id_shop, id_lang
+        FROM `'._DB_PREFIX_.static::$definition['table'].'`
+        WHERE `id_product` = '.(int) $idProduct.'
+          AND `id_product_attribute` = '.(int) $idProductAttribute.'
+          AND `id_shop` IN ('.$in.')';
 
         $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
         return is_array($result) ? $result : [];

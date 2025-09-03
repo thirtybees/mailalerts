@@ -23,7 +23,13 @@ CREATE TABLE IF NOT EXISTS `PREFIX_mailalert_customer_oos` (
   `id_product_attribute` INT(11) unsigned NOT NULL,
   `id_shop` INT(11) unsigned NOT NULL,
   `id_lang` INT(11) unsigned NOT NULL,
+  `ip_hash` VARBINARY(32) DEFAULT NULL,
+  `ip_mask` VARBINARY(16) DEFAULT NULL,
+  `user_agent` VARCHAR(255) DEFAULT NULL,
   `date_add` DATETIME NOT NULL,
+  PRIMARY KEY (`id_mailalert_customer_oos`),
   UNIQUE KEY `cust_prod` (`id_customer`,`customer_email`,`id_product`,`id_product_attribute`,`id_shop`),
-  PRIMARY KEY (`id_mailalert_customer_oos`)
+  KEY `idx_mailalert_oos_hash` (`ip_hash`),
+  KEY `idx_mailalert_oos_prod_shop` (`id_product`,`id_product_attribute`,`id_shop`),
+  KEY `idx_mailalert_oos_date` (`date_add`)
 ) ENGINE=ENGINE_TYPE DEFAULT CHARSET=CHARSET_TYPE COLLATE=COLLATE_TYPE;

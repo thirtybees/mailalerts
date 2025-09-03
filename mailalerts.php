@@ -95,7 +95,7 @@ class MailAlerts extends Module
     {
         $this->name = 'mailalerts';
         $this->tab = 'administration';
-        $this->version = '4.5.0';
+        $this->version = '4.6.0';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
 
@@ -167,9 +167,15 @@ class MailAlerts extends Module
             Configuration::deleteByName('MA_PRODUCT_COVERAGE');
             Configuration::deleteByName('MA_ORDER_EDIT');
             Configuration::deleteByName('MA_RETURN_SLIP');
+            Configuration::deleteByName('MAILALERTS_IP_HMAC_KEY');
+            Configuration::deleteByName('MAILALERTS_OOS_RETENTION_DAYS');
             if (! $this->uninstallDb()) {
                 return false;
             }
+        }
+
+        if (! $this->uninstallTab()) {
+            return false;
         }
 
         return parent::uninstall();
@@ -201,6 +207,10 @@ class MailAlerts extends Module
             return false;
         }
 
+        if (! $this->installTab()) {
+            return false;
+        }
+
         if ($deleteParams) {
             Configuration::updateValue('MA_MERCHANT_ORDER', 1);
             Configuration::updateValue('MA_MERCHANT_OOS', 1);
@@ -211,11 +221,14 @@ class MailAlerts extends Module
             Configuration::updateValue('MA_LAST_QTIES', (int) Configuration::get('PS_LAST_QTIES'));
             Configuration::updateGlobalValue('MA_MERCHANT_COVERAGE', 0);
             Configuration::updateGlobalValue('MA_PRODUCT_COVERAGE', 0);
+            Configuration::updateValue('MAILALERTS_OOS_RETENTION_DAYS', 365);
 
             if (! $this->installDb()) {
                 return false;
             }
         }
+
+        self::ipHmacKey();
 
         return true;
     }
@@ -230,29 +243,8 @@ class MailAlerts extends Module
      */
     public function getContent()
     {
-        if (Tools::isSubmit('delete' . $this->name)) {
-            $subscriberId = (int)Tools::getValue('id_mailalert_customer_oos');
-            $productId = (int)Tools::getValue('id_product');
-
-            if ($subscriberId) {
-                Db::getInstance()->delete('mailalert_customer_oos', 'id_mailalert_customer_oos = ' . $subscriberId);
-                $this->context->controller->confirmations[] = $this->l('The notification has been successfully deleted.');
-
-                Tools::redirectAdmin(Context::getContext()->link->getAdminLink('AdminModules', true, [
-                    'configure' => 'mailalerts',
-                    'module_name' => 'mailalerts',
-                    'id_product' => $productId,
-                ]) . '#subscribers');
-            }
-        }
-
         $html = $this->postProcess();
         $html .= $this->renderForm();
-
-        if ($this->customer_qty) {
-            $html .= "<a id='subscribers'></a>";
-            $html .= $this->renderList();
-        }
 
         return $html;
     }
@@ -273,6 +265,8 @@ class MailAlerts extends Module
                 if (!Configuration::updateValue('MA_CUSTOMER_QTY', (int)Tools::getValue('MA_CUSTOMER_QTY'))) {
                     $errors[] = $this->l('Cannot update settings');
                 } elseif (!Configuration::updateGlobalValue('MA_ORDER_EDIT', (int)Tools::getValue('MA_ORDER_EDIT'))) {
+                    $errors[] = $this->l('Cannot update settings');
+                } elseif (!Configuration::updateValue('MAILALERTS_OOS_RETENTION_DAYS', (int)Tools::getValue('MAILALERTS_OOS_RETENTION_DAYS'))) {
                     $errors[] = $this->l('Cannot update settings');
                 }
             }
@@ -390,6 +384,17 @@ class MailAlerts extends Module
                                 'label' => $this->l('Disabled'),
                             ],
                         ],
+                    ],
+                    [
+                        'type'  => 'text',
+                        'label' => $this->l('Days to keep requests'),
+                        'name'  => 'MAILALERTS_OOS_RETENTION_DAYS',
+                        'class' => 'fixed-width-sm',
+                        'suffix' => $this->l('days'),
+                        'desc'  => $this->l('Retention period (days) for out-of-stock notification requests. There’s no need to retain aged requests or those for products that are no longer stockable.')
+                            . '<br><div class="alert alert-warning">'
+                            . $this->l('IP and user-agent information is collected for security audit purposes. The IP is saved in pseudonymised form (masked prefix + keyed hash); use the hash to detect repeat requests from the same IP without revealing the full address.')
+                            . '</div>',
                     ],
                 ],
                 'submit' => [
@@ -542,182 +547,6 @@ class MailAlerts extends Module
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function renderList()
-    {
-        $productId = (int)Tools::getValue('id_product');
-
-        if ($productId) {
-            $product = new Product($productId, false, $this->context->language->id);
-
-            if (Validate::isLoadedObject($product)) {
-                $productName = $product->name;
-            } else {
-                $productName = $this->l('Deleted product');
-            }
-
-            $listFields = [
-                'combination_name' => [
-                    'title' => $this->l('Combination'),
-                    'type' => 'text',
-                ],
-                'customer_name' => [
-                    'title' => $this->l('Customer'),
-                    'type' => 'text',
-                    'callback_object' => $this,
-                    'callback' => 'renderCustomer'
-                ],
-                'customer_email' => [
-                    'title' => $this->l('Email'),
-                    'type' => 'text',
-                ],
-                'date_add' => [
-                    'title' => $this->l('Date'),
-                    'type' => 'text',
-                ],
-            ];
-
-            if (! $product->hasAttributes()) {
-                unset($listFields['combination_name']);
-            }
-
-            $helper = new HelperList();
-            $helper->shopLinkType = '';
-            $helper->simple_header = true;
-            $helper->identifier = 'id_mailalert_customer_oos';
-            $helper->actions = ['delete'];
-            $helper->no_link = true;
-            $helper->show_toolbar = false;
-            $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
-                'configure' => 'mailalerts',
-                'module_name' => 'mailalerts',
-            ]);
-            $helper->title = Translate::ppTags(sprintf($this->l('Notification for "%s". [1]Show all[/1]'), $productName, $productId),  ['<a href="'.$url.'#subscribers">']);
-            $helper->table = $this->name;
-            $helper->token = Tools::getAdminTokenLite('AdminModules');
-            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
-            $content = $this->getProductListSubscribers($productId);
-            $helper->listTotal = count($content);
-            return $helper->generateList($content, $listFields);
-        } else {
-            $listFields = [
-                'id_product' => [
-                    'title' => $this->l('Product ID'),
-                    'type' => 'text',
-                ],
-                'reference' => [
-                    'title' => $this->l('Reference'),
-                    'type' => 'text',
-                    'callback_object' => $this,
-                    'callback' => 'renderProduct'
-                ],
-                'product_name' => [
-                    'title' => $this->l('Product Name'),
-                    'type' => 'text',
-                    'callback_object' => $this,
-                    'callback' => 'renderProduct'
-                ],
-                'combination_name' => [
-                    'title' => $this->l('Combination'),
-                    'type' => 'text',
-                ],
-                'cnt' => [
-                    'title' => $this->l('Number of subscribers'),
-                    'type' => 'text',
-                    'callback_object' => $this,
-                    'callback' => 'renderCnt'
-                ],
-            ];
-
-            $helper = new HelperList();
-            $helper->shopLinkType = '';
-            $helper->simple_header = true;
-            $helper->identifier = 'id_product';
-            $helper->actions = [];
-            $helper->no_link = true;
-            $helper->show_toolbar = false;
-            $helper->title = $this->l('Products with notifications');
-            $helper->table = $this->name;
-            $helper->token = Tools::getAdminTokenLite('AdminModules');
-            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
-            $content = $this->getProductsSubscribers();
-            $helper->listTotal = count($content);
-            return $helper->generateList($content, $listFields);
-        }
-    }
-
-    /**
-     * Get list content
-     *
-     * @return array
-     *
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     */
-    protected function getProductsSubscribers()
-    {
-        $langId = (int)Context::getContext()->language->id;
-        $conn = Db::getInstance();
-
-        $sql = (new DbQuery())
-            ->select('oos.id_product')
-            ->select('NULLIF(p.reference, "") AS reference')
-            ->select('NULLIF(pl.name, "") AS product_name')
-            ->select('COUNT(DISTINCT oos.id_mailalert_customer_oos) as cnt')
-            ->select('IF(oos.id_product_attribute > 0, GROUP_CONCAT(DISTINCT al.name ORDER BY agl.id_attribute_group SEPARATOR ", "), "") AS combination_name')
-            ->from('mailalert_customer_oos', 'oos')
-            ->leftJoin('product_lang', 'pl', 'pl.id_lang = '.$langId.' AND pl.id_product = oos.id_product AND pl.id_shop = oos.id_shop')
-            ->leftJoin('product', 'p', 'p.id_product = oos.id_product')
-            ->leftJoin('product_attribute_combination', 'pac', 'pac.id_product_attribute = oos.id_product_attribute')
-            ->leftJoin('attribute', 'a', 'a.id_attribute = pac.id_attribute')
-            ->leftJoin('attribute_lang', 'al', 'al.id_attribute = a.id_attribute AND al.id_lang = '.$langId)
-            ->leftJoin('attribute_group_lang', 'agl', 'agl.id_attribute_group = a.id_attribute_group AND agl.id_lang = '.$langId)
-            ->where('1' . Shop::addSqlRestriction(false, 'oos'))
-            ->groupBy('oos.id_product')
-            ->orderBy('COUNT(DISTINCT oos.id_mailalert_customer_oos) DESC');
-
-        return $conn->executeS($sql);
-    }
-
-    /**
-     * Get list content
-     *
-     * @param int $productId
-     *
-     * @return array
-     *
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     */
-    protected function getProductListSubscribers($productId)
-    {
-        $langId = (int)Context::getContext()->language->id;
-        $conn = Db::getInstance();
-        $sql = (new DbQuery())
-            ->select('oos.id_mailalert_customer_oos')
-            ->select('oos.id_customer')
-            ->select('IF(oos.id_product_attribute > 0, oos.id_product_attribute, NULL)')
-            ->select('oos.customer_email')
-            ->select('oos.date_add')
-            ->select('COALESCE((
-                            SELECT GROUP_CONCAT(al.`name` ORDER BY agl.`id_attribute_group` SEPARATOR \', \')
-                             FROM `' . _DB_PREFIX_ . 'product_attribute_combination` pac
-                             LEFT JOIN `' . _DB_PREFIX_ . 'attribute` a ON a.`id_attribute` = pac.`id_attribute`
-                             LEFT JOIN `' . _DB_PREFIX_ . 'attribute_group` ag ON ag.`id_attribute_group` = a.`id_attribute_group`
-                             LEFT JOIN `' . _DB_PREFIX_ . 'attribute_lang` al ON (a.`id_attribute` = al.`id_attribute` AND al.`id_lang` = ' . (int)Context::getContext()->language->id . ')
-                             LEFT JOIN `' . _DB_PREFIX_ . 'attribute_group_lang` agl ON (ag.`id_attribute_group` = agl.`id_attribute_group` AND agl.`id_lang` = ' . (int)Context::getContext()->language->id . ')
-                             WHERE pac.id_product_attribute  = oos.id_product_attribute
-                             GROUP BY pac.id_product_attribute
-                    ), \'-\') AS combination_name')
-            ->select('IF(cust.id_customer, CONCAT(cust.firstname, " ", cust.lastname), NULL) AS customer_name')
-            ->from('mailalert_customer_oos', 'oos')
-            ->leftJoin('product_lang', 'pl', 'pl.id_lang = ' . $langId . ' AND pl.id_product = oos.id_product AND pl.id_shop = oos.id_shop')
-            ->leftJoin('customer', 'cust', 'oos.id_customer = cust.id_customer')
-            ->where('oos.id_product = ' . $productId . Shop::addSqlRestriction(false, 'oos'))
-            ->orderBy('oos.id_product')
-            ->orderBy('oos.id_product_attribute')
-            ->orderBy('oos.date_add');
-        return $conn->executeS($sql);
-    }
 
     /**
      * Configuration field values
@@ -737,6 +566,7 @@ class MailAlerts extends Module
             'MA_MERCHANT_MAILS'    => Tools::getValue('MA_MERCHANT_MAILS', implode(static::__MA_MAIL_DELIMITOR__, static::getMerchantEmails())),
             'MA_ORDER_EDIT'        => Tools::getValue('MA_ORDER_EDIT', Configuration::get('MA_ORDER_EDIT')),
             'MA_RETURN_SLIP'       => Tools::getValue('MA_RETURN_SLIP', Configuration::get('MA_RETURN_SLIP')),
+            'MAILALERTS_OOS_RETENTION_DAYS' => Tools::getValue('MAILALERTS_OOS_RETENTION_DAYS', Configuration::get('MAILALERTS_OOS_RETENTION_DAYS')),
         ];
     }
 
@@ -1073,7 +903,7 @@ class MailAlerts extends Module
         }
 
         if ($this->customer_qty && $quantity > 0) {
-            MailAlert::sendCustomerAlert((int) $product->id, (int) $params['id_product_attribute']);
+            MailAlert::sendCustomerAlert((int) $product->id, (int) $params['id_product_attribute'], $idShop);
         }
     }
 
@@ -1085,14 +915,15 @@ class MailAlerts extends Module
     public function hookActionProductAttributeUpdate($params)
     {
         $sql = '
-			SELECT `id_product`, `quantity`
-			FROM `'._DB_PREFIX_.'stock_available`
-			WHERE `id_product_attribute` = '.(int) $params['id_product_attribute'];
+                        SELECT `id_product`, `quantity`
+                        FROM `'._DB_PREFIX_.'stock_available`
+                        WHERE `id_product_attribute` = '.(int) $params['id_product_attribute'];
 
         $result = Db::getInstance()->getRow($sql);
+        $idShop = (int) Context::getContext()->shop->id;
 
         if ($this->customer_qty && $result['quantity'] > 0) {
-            MailAlert::sendCustomerAlert((int) $result['id_product'], (int) $params['id_product_attribute']);
+            MailAlert::sendCustomerAlert((int) $result['id_product'], (int) $params['id_product_attribute'], $idShop);
         }
     }
 
@@ -1232,8 +1063,8 @@ class MailAlerts extends Module
     {
         $controller = Dispatcher::getInstance()->getController();
         if (in_array($controller, ['product', 'account'])) {
-            $this->context->controller->addJS($this->_path.'js/mailalerts.js');
             $this->context->controller->addCSS($this->_path.'css/mailalerts.css', 'all');
+            $this->context->controller->addJS($this->_path.'js/mailalerts.js');
         }
     }
 
@@ -1450,6 +1281,49 @@ class MailAlerts extends Module
     }
 
     /**
+     * Install back office tab
+     *
+     * @return bool
+     * @throws PrestaShopException
+     */
+
+    public function installTab()
+    {
+        $className = 'AdminMailalertsOos';
+
+        if (Tab::getIdFromClassName($className)) {
+            return true;
+        }
+
+        $tab = new Tab();
+        $tab->class_name = $className;
+        $tab->module = $this->name;
+        $tab->id_parent = (int) Tab::getIdFromClassName('AdminCatalog');
+        $tab->active = 1;
+        foreach (Language::getLanguages(false) as $lang) {
+            $tab->name[$lang['id_lang']] = $this->l('OOS Product Notifications');
+        }
+
+        return (bool) $tab->add();
+    }
+
+    /**
+     * Remove back office tab
+     *
+     * @return bool
+     * @throws PrestaShopException
+     */
+    private function uninstallTab()
+    {
+        if ($idTab = (int) Tab::getIdFromClassName('AdminMailalertsOos')) {
+            $tab = new Tab($idTab);
+            return (bool) $tab->delete();
+        }
+
+        return true;
+    }
+
+    /**
      * Executes sql script
      * @param string $script
      * @param bool $check
@@ -1491,60 +1365,6 @@ class MailAlerts extends Module
         return true;
     }
 
-    /**
-     * @param string $value
-     * @param array $row
-     *
-     * @return string
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     */
-    public function renderCustomer($value, $row)
-    {
-        $customerId = (int)$row['id_customer'];
-        $url = Context::getContext()->link->getAdminLink('AdminCustomers', true, [
-            'id_customer' => $customerId,
-            'viewcustomer' => 1
-        ]);
-        return '<a href="'.$url.'">'.Tools::safeOutput($value).'</a>';
-    }
-
-    /**
-     * @param string $value
-     * @param array $row
-     *
-     * @return string
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     */
-    public function renderProduct($value, $row)
-    {
-        $productId = (int)$row['id_product'];
-        $url = Context::getContext()->link->getAdminLink('AdminProducts', true, [
-            'id_product' => $productId,
-            'updateproduct' => 1
-        ]);
-        return '<a href="'.$url.'">'.Tools::safeOutput($value).'</a>';
-    }
-
-    /**
-     * @param string $value
-     * @param array $row
-     *
-     * @return string
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     */
-    public function renderCnt($value, $row)
-    {
-        $productId = (int)$row['id_product'];
-        $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
-            'configure' => 'mailalerts',
-            'module_name' => 'mailalerts',
-            'id_product' => $productId,
-        ]);
-        return '<a href="'.$url.'#subscribers">'.Tools::safeOutput($value).'</a>';
-    }
 
 
     /**
@@ -1610,5 +1430,50 @@ class MailAlerts extends Module
                     onclick="return confirm(\''.$this->l('Are you sure you want to delete this notification?').'\')">
                     '.$this->l('Delete').'
                 </a>';
+    }
+    // --- IP privacy helpers (HMAC + mask) ---
+    public static function ipHmacKey(): string
+    {
+        $k = Configuration::getGlobalValue('MAILALERTS_IP_HMAC_KEY');
+        if (!$k) {
+            $k = hash('sha256', _COOKIE_KEY_ . ':mailalerts:ip-hmac');
+            Configuration::updateGlobalValue('MAILALERTS_IP_HMAC_KEY', $k);
+        }
+        return $k;
+    }
+
+    /** "1.2.3.4" or "2001:db8::1" -> binary (4 or 16 bytes) or null */
+    public static function ipToBin(?string $ip): ?string
+    {
+        if (!$ip) {
+            return null;
+        }
+        $bin = @inet_pton($ip);
+        return $bin === false ? null : $bin;
+    }
+
+    /** IPv4 -> /24, IPv6 -> /64, returned as binary prefix (same 4/16-byte shape) */
+    public static function maskIpBinary(?string $bin): ?string
+    {
+        if ($bin === null) {
+            return null;
+        }
+        $len = strlen($bin);
+        if ($len === 4) {
+            return substr($bin, 0, 3) . "\x00";
+        }
+        if ($len === 16) {
+            return substr($bin, 0, 8) . str_repeat("\x00", 8);
+        }
+        return null;
+    }
+
+    /** HMAC-SHA256 over binary IP → 32-byte binary digest */
+    public static function hashIpBinary(?string $bin): ?string
+    {
+        if ($bin === null) {
+            return null;
+        }
+        return hash_hmac('sha256', $bin, self::ipHmacKey(), true);
     }
 }
