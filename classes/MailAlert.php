@@ -154,7 +154,7 @@ class MailAlert extends ObjectModel
      *
      * @throws PrestaShopException
      */
-    public static function getMailAlerts($idCustomer, $idLang, Shop $shop = null)
+    public static function getMailAlerts($idCustomer, $idLang, ?Shop $shop = null)
     {
         if (!Validate::isUnsignedId($idCustomer) || !Validate::isUnsignedId($idLang)) {
             return [];
